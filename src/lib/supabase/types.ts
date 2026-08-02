@@ -77,6 +77,8 @@ export interface BusyEvent {
   user_id: string;
   start_at: string;
   end_at: string;
+  /** Titre réel de l'événement, uniquement si le propriétaire a activé le partage pour l'appelant. */
+  title: string | null;
 }
 
 export type OutingResponse = "pending" | "accepted" | "declined";

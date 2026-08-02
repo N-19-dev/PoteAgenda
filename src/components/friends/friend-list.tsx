@@ -8,13 +8,16 @@ import { UserMinus, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ListRow, ListRowGroup } from "@/components/ui/list-row";
-import { removeFriend } from "@/lib/actions/friends";
+import { Switch } from "@/components/ui/switch";
+import { removeFriend, setCalendarSharePreference } from "@/lib/actions/friends";
 import type { Profile } from "@/lib/supabase/types";
 
 export function FriendList({
   friends,
+  shareEnabledByFriend = {},
 }: {
   friends: { friendshipId: string; profile: Profile }[];
+  shareEnabledByFriend?: Record<string, boolean>;
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -24,6 +27,18 @@ export function FriendList({
       try {
         await removeFriend(friendshipId);
         toast.success("Ami retiré");
+        router.refresh();
+      } catch {
+        toast.error("Action impossible");
+      }
+    });
+  }
+
+  function handleShareToggle(friendId: string, enabled: boolean) {
+    startTransition(async () => {
+      try {
+        await setCalendarSharePreference(friendId, enabled);
+        toast.success(enabled ? "Détail des événements partagé" : "Partage désactivé");
         router.refresh();
       } catch {
         toast.error("Action impossible");
@@ -59,15 +74,27 @@ export function FriendList({
                 </Avatar>
                 <span className="truncate text-sm">@{profile.username}</span>
               </Link>
-              <Button
-                size="icon"
-                variant="ghost"
-                disabled={isPending}
-                onClick={() => handleRemove(friendshipId)}
-                aria-label="Retirer cet ami"
-              >
-                <UserMinus className="h-4 w-4 text-muted-foreground" />
-              </Button>
+              <div className="flex shrink-0 items-center gap-3">
+                <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="hidden sm:inline">Partager le détail</span>
+                  <Switch
+                    size="sm"
+                    checked={!!shareEnabledByFriend[profile.id]}
+                    onCheckedChange={(checked) => handleShareToggle(profile.id, checked)}
+                    disabled={isPending}
+                    aria-label={`Partager le détail de mes événements avec @${profile.username}`}
+                  />
+                </label>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={isPending}
+                  onClick={() => handleRemove(friendshipId)}
+                  aria-label="Retirer cet ami"
+                >
+                  <UserMinus className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </div>
             </ListRow>
           ))}
         </ListRowGroup>

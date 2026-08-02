@@ -37,6 +37,7 @@ import {
   minutesToLabel,
   slotIndexToMinutes,
   slotRangeToTimes,
+  titleForBusySlot,
   type CalendarView,
 } from "@/lib/schedule";
 import { addCalendarEvent, deleteCalendarEvent } from "@/lib/actions/calendar-events";
@@ -400,13 +401,18 @@ export function AgendaEditor({
                         })()}
                         {busyFriendIds.length > 0 && (
                           <div className="absolute inset-x-0.5 bottom-0.5 flex justify-center gap-1">
-                            {busyFriendIds.slice(0, 4).map((id) => (
-                              <span
-                                key={id}
-                                className="h-2 w-2 rounded-full ring-2 ring-background"
-                                style={{ backgroundColor: colorForFriend(id) }}
-                              />
-                            ))}
+                            {busyFriendIds.slice(0, 4).map((id) => {
+                              const sharedTitle = titleForBusySlot(friendsBusyEvents, id, gridDates[day], slot);
+                              const username = friends.find((f) => f.id === id)?.username;
+                              return (
+                                <span
+                                  key={id}
+                                  className="h-2 w-2 rounded-full ring-2 ring-background"
+                                  style={{ backgroundColor: colorForFriend(id) }}
+                                  title={sharedTitle ? `${username ? `@${username} : ` : ""}${sharedTitle}` : username ? `@${username} occupé·e` : undefined}
+                                />
+                              );
+                            })}
                           </div>
                         )}
                       </div>

@@ -41,6 +41,12 @@ export default async function FriendsPage() {
       profile: r.requester_id === user!.id ? r.addressee : r.requester,
     }));
 
+  const { data: sharePrefs } = await supabase
+    .from("calendar_share_preferences")
+    .select("viewer_id, enabled")
+    .eq("owner_id", user!.id);
+  const shareEnabledByFriend = new Map((sharePrefs ?? []).map((p) => [p.viewer_id, p.enabled]));
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -64,7 +70,7 @@ export default async function FriendsPage() {
         {incomingRequests.length > 0 && (
           <FriendRequests requests={incomingRequests} />
         )}
-        <FriendList friends={accepted} />
+        <FriendList friends={accepted} shareEnabledByFriend={Object.fromEntries(shareEnabledByFriend)} />
       </div>
     </div>
   );

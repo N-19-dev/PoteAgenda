@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { SLOTS_PER_DAY, buildBusyGrid, getWeekDates, minutesToLabel, slotIndexToMinutes, slotRangeToTimes, slotStatus } from "@/lib/schedule";
+import { SLOTS_PER_DAY, buildBusyGrid, getWeekDates, minutesToLabel, slotIndexToMinutes, slotRangeToTimes, slotStatus, titleForBusySlot } from "@/lib/schedule";
 import { createOuting } from "@/lib/actions/outings";
 import type { BusyEvent, Profile } from "@/lib/supabase/types";
 import { CalendarPlus, Check, X } from "lucide-react";
@@ -52,10 +52,15 @@ export function MatcherGrid({ weekStart, groupId, members, busyEvents }: Matcher
     selected &&
     (() => {
       const busyIds = new Set(grid.busyMembers[selected.day][selected.slot]);
+      const day = weekDates[selected.day];
       return {
-        date: weekDates[selected.day],
+        date: day,
         minutes: slotIndexToMinutes(selected.slot),
-        members: members.map((m) => ({ ...m, busy: busyIds.has(m.id) })),
+        members: members.map((m) => ({
+          ...m,
+          busy: busyIds.has(m.id),
+          sharedTitle: titleForBusySlot(busyEvents, m.id, day, selected.slot),
+        })),
       };
     })();
 
@@ -142,6 +147,9 @@ export function MatcherGrid({ weekStart, groupId, members, busyEvents }: Matcher
                     </Avatar>
                     <span className={cn("flex-1 truncate", m.busy && "text-muted-foreground")}>
                       {m.username}
+                      {m.busy && m.sharedTitle && (
+                        <span className="ml-1.5 truncate text-xs text-foreground/70">· {m.sharedTitle}</span>
+                      )}
                     </span>
                     {m.busy ? (
                       <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">

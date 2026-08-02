@@ -171,8 +171,9 @@ export function eventSlotRangeForDay(
 
 /**
  * Construit, pour chaque date de la semaine affichée et chaque créneau de
- * 30 min, le nombre (et la liste) de membres occupés — sans jamais
- * manipuler de titre d'événement (les BusyEvent n'en contiennent pas).
+ * 30 min, le nombre (et la liste) de membres occupés. Le titre réel d'un
+ * événement (quand le propriétaire l'a partagé) n'est pas agrégé ici —
+ * voir titleForBusySlot pour le retrouver ponctuellement.
  */
 export function buildBusyGrid(busyEvents: BusyEvent[], weekDates: Date[]): DaySlotGrid {
   const busyCounts: number[][] = Array.from({ length: 7 }, () => Array(SLOTS_PER_DAY).fill(0));
@@ -196,6 +197,21 @@ export function buildBusyGrid(busyEvents: BusyEvent[], weekDates: Date[]): DaySl
   }
 
   return { busyCounts, busyMembers };
+}
+
+/** Retrouve le titre réel (s'il a été partagé) d'un créneau occupé précis. */
+export function titleForBusySlot(
+  busyEvents: BusyEvent[],
+  userId: string,
+  day: Date,
+  slot: number,
+): string | null {
+  for (const event of busyEvents) {
+    if (event.user_id !== userId || !event.title) continue;
+    const range = eventSlotRangeForDay(new Date(event.start_at), new Date(event.end_at), day);
+    if (range && slot >= range.startSlot && slot < range.endSlot) return event.title;
+  }
+  return null;
 }
 
 /** Convertit une plage de créneaux sur une date concrète en timestamps ISO. */
