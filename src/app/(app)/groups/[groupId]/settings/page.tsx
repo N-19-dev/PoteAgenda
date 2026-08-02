@@ -46,7 +46,7 @@ export default async function GroupSettingsPage({ params }: PageProps) {
   const isOwner = group.owner_id === user.id;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <Link
           href={`/groups/${groupId}`}
@@ -57,7 +57,7 @@ export default async function GroupSettingsPage({ params }: PageProps) {
         </Link>
       </div>
 
-      <h1 className="text-xl font-semibold tracking-tight">Réglages du groupe</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Réglages du groupe</h1>
 
       <ManageMembers
         groupId={groupId}

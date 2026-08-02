@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MatcherGrid } from "@/components/calendar/matcher-grid";
+import { CreateOutingDialog } from "@/components/outings/create-outing-dialog";
 import { dateKey, parseWeekParam } from "@/lib/schedule";
-import type { BusyEvent, Profile } from "@/lib/supabase/types";
+import type { BusyEvent, Group, Profile } from "@/lib/supabase/types";
 
 interface PageProps {
   params: Promise<{ groupId: string }>;
@@ -44,7 +45,7 @@ export default async function GroupMatcherPage({ params, searchParams }: PagePro
   });
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex items-center justify-between gap-2">
         <Link
           href="/groups"
@@ -60,11 +61,15 @@ export default async function GroupMatcherPage({ params, searchParams }: PagePro
         </Link>
       </div>
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">{group.name}</h1>
-        {group.description && (
-          <p className="text-sm text-muted-foreground">{group.description}</p>
-        )}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-primary">{members.length} membre{members.length > 1 ? "s" : ""}</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{group.name}</h1>
+          {group.description && (
+            <p className="mt-2 text-sm text-muted-foreground">{group.description}</p>
+          )}
+        </div>
+        <CreateOutingDialog friends={[]} groups={[group as Group]} defaultGroupId={groupId} />
       </div>
 
       <div className="flex items-center gap-2">

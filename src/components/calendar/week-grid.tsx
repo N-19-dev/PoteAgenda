@@ -1,39 +1,47 @@
 "use client";
 
-import { Fragment, useCallback, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { format, isToday } from "date-fns";
+import { fr } from "date-fns/locale";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  DAY_LABELS_SHORT,
-  GRID_START_HOUR,
-  GRID_END_HOUR,
+  NIGHT_SLOT_COUNT,
   SLOTS_PER_DAY,
-  slotIndexToMinutes,
+  SLOT_MINUTES,
   minutesToLabel,
+  slotIndexToMinutes,
 } from "@/lib/schedule";
 
 export interface SlotSelection {
   day: number;
   startSlot: number;
-  endSlot: number; // exclusif
+  endSlot: number;
 }
 
 interface WeekGridProps {
-  /** Les 7 dates (Lun..Dim) de la semaine affichée. */
   weekDates: Date[];
-  /** Classe(s) CSS appliquée(s) à une cellule (couleur "libre pour tous", etc). */
   cellClassName: (day: number, slotIndex: number) => string;
-  /** Contenu optionnel affiché dans la cellule (ex: avatars). */
   cellContent?: (day: number, slotIndex: number) => React.ReactNode;
-  /** Simple tap sur une cellule (utilisé en lecture seule pour la vue Matcher). */
   onCellTap?: (day: number, slotIndex: number) => void;
-  /** Sélection par glisser (utilisé pour saisir une indisponibilité perso). */
   onRangeSelect?: (selection: SlotSelection) => void;
   interactive?: boolean;
 }
 
-const ROW_HEIGHT = 26; // px
+const ROW_HEIGHT = 22;
 
+function useNowMinutes() {
+  const [minutes, setMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    const update = () => setMinutes(new Date().getHours() * 60 + new Date().getMinutes());
+    update();
+    const id = setInterval(update, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return minutes;
+}
+
+/** Grille compacte : la lecture du temps prime, la nuit (0h-8h) est repliée par défaut. */
 export function WeekGrid({
   weekDates,
   cellClassName,
@@ -44,103 +52,127 @@ export function WeekGrid({
 }: WeekGridProps) {
   const [dragStart, setDragStart] = useState<{ day: number; slot: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
-  const isDragging = useRef(false);
+  const [nightOpen, setNightOpen] = useState(false);
+  const dragging = useRef(false);
+  const nowMinutes = useNowMinutes();
 
-  const slots = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
-
-  const handlePointerDown = useCallback(
-    (day: number, slot: number) => {
-      if (!interactive) return;
-      isDragging.current = true;
-      setDragStart({ day, slot });
-      setDragEnd(slot);
-    },
-    [interactive],
+  const visibleSlots = Array.from(
+    { length: SLOTS_PER_DAY - (nightOpen ? 0 : NIGHT_SLOT_COUNT) },
+    (_, i) => i + (nightOpen ? 0 : NIGHT_SLOT_COUNT),
   );
 
-  const handlePointerEnter = useCallback(
-    (day: number, slot: number) => {
-      if (!interactive || !isDragging.current || !dragStart || dragStart.day !== day) return;
-      setDragEnd(slot);
-    },
-    [interactive, dragStart],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    if (!interactive || !isDragging.current || !dragStart || dragEnd === null) {
-      isDragging.current = false;
+  const finishDrag = useCallback(() => {
+    if (!interactive || !dragging.current || !dragStart || dragEnd === null) {
+      dragging.current = false;
       return;
     }
-    isDragging.current = false;
-    const startSlot = Math.min(dragStart.slot, dragEnd);
-    const endSlot = Math.max(dragStart.slot, dragEnd) + 1;
-    onRangeSelect?.({ day: dragStart.day, startSlot, endSlot });
+    onRangeSelect?.({
+      day: dragStart.day,
+      startSlot: Math.min(dragStart.slot, dragEnd),
+      endSlot: Math.max(dragStart.slot, dragEnd) + 1,
+    });
+    dragging.current = false;
     setDragStart(null);
     setDragEnd(null);
-  }, [interactive, dragStart, dragEnd, onRangeSelect]);
+  }, [dragEnd, dragStart, interactive, onRangeSelect]);
 
-  const isInDragRange = (day: number, slot: number) => {
-    if (!dragStart || dragEnd === null || dragStart.day !== day) return false;
-    const min = Math.min(dragStart.slot, dragEnd);
-    const max = Math.max(dragStart.slot, dragEnd);
-    return slot >= min && slot <= max;
-  };
+  const selected = (day: number, slot: number) =>
+    dragStart?.day === day &&
+    dragEnd !== null &&
+    slot >= Math.min(dragStart.slot, dragEnd) &&
+    slot <= Math.max(dragStart.slot, dragEnd);
+
+  const todayIndex = weekDates.findIndex((d) => isToday(d));
+  const nowLine =
+    todayIndex >= 0 && nowMinutes !== null && (nightOpen || nowMinutes >= slotIndexToMinutes(NIGHT_SLOT_COUNT))
+      ? { column: todayIndex + 2, row: 3 + (Math.floor(nowMinutes / SLOT_MINUTES) - visibleSlots[0]), offset: ((nowMinutes % SLOT_MINUTES) / SLOT_MINUTES) * ROW_HEIGHT }
+      : null;
 
   return (
     <div
-      className="relative overflow-auto rounded-lg border border-border"
-      style={{ maxHeight: "70vh" }}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
+      className="overflow-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+      onPointerUp={finishDrag}
+      onPointerLeave={finishDrag}
     >
       <div
-        className="grid select-none"
-        style={{ gridTemplateColumns: "36px repeat(7, minmax(38px, 1fr))" }}
+        className="relative grid select-none"
+        style={{
+          gridTemplateColumns: `40px repeat(${weekDates.length}, minmax(64px, 1fr))`,
+          minWidth: weekDates.length > 1 ? "560px" : undefined,
+        }}
       >
-        {/* Header sticky */}
-        <div className="sticky top-0 left-0 z-20 bg-card" />
-        {weekDates.map((date, i) => (
+        <div className="sticky left-0 top-0 z-20 border-b border-border bg-card" />
+        {weekDates.map((date) => (
           <div
             key={date.toISOString()}
             className={cn(
-              "sticky top-0 z-10 border-b border-l border-border bg-card py-1.5 text-center text-[11px] font-medium text-muted-foreground",
-              isToday(date) && "text-foreground",
+              "sticky top-0 z-10 border-b border-l border-border bg-card py-1.5 text-center",
             )}
           >
-            {DAY_LABELS_SHORT[i]} <span className="text-[10px]">{format(date, "d")}</span>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              {format(date, "EEE", { locale: fr })}
+            </div>
+            <div
+              className={cn(
+                "mx-auto mt-0.5 flex size-6 items-center justify-center rounded-full text-[13px] font-semibold tabular-nums",
+                isToday(date) && "bg-primary text-primary-foreground",
+              )}
+            >
+              {format(date, "d")}
+            </div>
           </div>
         ))}
 
-        {/* Corps : une ligne par créneau de 30 min */}
-        {slots.map((slot) => {
+        {/* Bandeau nuit repliable (0h-8h) */}
+        <button
+          type="button"
+          onClick={() => setNightOpen((v) => !v)}
+          className="col-span-full flex items-center justify-center gap-1 border-t border-border bg-muted/40 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/70"
+        >
+          {nightOpen ? (
+            <>
+              <ChevronUp className="h-3 w-3" /> Replier la nuit (0h–8h)
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3" /> Nuit repliée (0h–8h)
+            </>
+          )}
+        </button>
+
+        {visibleSlots.map((slot) => {
           const minutes = slotIndexToMinutes(slot);
-          const isHourStart = minutes % 60 === 0;
+          const hour = minutes % 60 === 0;
           return (
             <Fragment key={slot}>
               <div
-                key={`gutter-${slot}`}
-                className="sticky left-0 z-10 bg-card pr-1 text-right text-[10px] text-muted-foreground"
+                className="sticky left-0 z-10 border-t border-border/70 bg-card pr-1.5 text-right font-mono text-[9px] text-muted-foreground"
                 style={{ height: ROW_HEIGHT }}
               >
-                {isHourStart ? (
-                  <span className="relative -top-1.5">{minutesToLabel(minutes)}</span>
-                ) : null}
+                {hour && <span className="relative -top-1.5">{minutesToLabel(minutes)}</span>}
               </div>
-              {Array.from({ length: 7 }, (_, day) => (
+              {weekDates.map((_, day) => (
                 <div
                   key={`${day}-${slot}`}
-                  onPointerDown={() => handlePointerDown(day, slot)}
-                  onPointerEnter={() => handlePointerEnter(day, slot)}
+                  style={{ height: ROW_HEIGHT }}
+                  onPointerDown={() => {
+                    if (interactive) {
+                      dragging.current = true;
+                      setDragStart({ day, slot });
+                      setDragEnd(slot);
+                    }
+                  }}
+                  onPointerEnter={() => {
+                    if (interactive && dragging.current && dragStart?.day === day) setDragEnd(slot);
+                  }}
                   onClick={() => onCellTap?.(day, slot)}
                   className={cn(
-                    "border-l border-t border-border/60 transition-colors",
-                    isHourStart && "border-t-border",
-                    interactive && "cursor-pointer active:opacity-80",
-                    onCellTap && !interactive && "cursor-pointer",
-                    isInDragRange(day, slot) && "bg-primary/40",
+                    "relative border-l border-t border-border/50",
+                    hour && "border-t-border/80",
+                    interactive && "cursor-pointer hover:bg-accent",
+                    selected(day, slot) && "bg-accent",
                     cellClassName(day, slot),
                   )}
-                  style={{ height: ROW_HEIGHT }}
                 >
                   {cellContent?.(day, slot)}
                 </div>
@@ -148,11 +180,26 @@ export function WeekGrid({
             </Fragment>
           );
         })}
+
+        {nowLine && (
+          <div
+            className="pointer-events-none z-10 flex items-center"
+            style={{
+              gridColumn: nowLine.column,
+              gridRow: nowLine.row,
+              marginTop: nowLine.offset,
+              height: 0,
+            }}
+          >
+            <span className="-ml-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            <span className="h-px w-full bg-primary" />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export function hoursLegend() {
-  return { GRID_START_HOUR, GRID_END_HOUR };
+  return { SLOT_MINUTES };
 }

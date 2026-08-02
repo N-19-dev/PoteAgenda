@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createGroup } from "@/lib/actions/groups";
 import { toast } from "sonner";
 
-export function CreateGroupDialog() {
+export function CreateGroupDialog({ variant = "button" }: { variant?: "button" | "tile" }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -44,9 +44,24 @@ export function CreateGroupDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" className="gap-1.5" />}>
+      <DialogTrigger
+        render={
+          variant === "tile" ? (
+            <button
+              type="button"
+              className="flex h-full min-h-[88px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            />
+          ) : (
+            <Button size="sm" className="gap-1.5" />
+          )
+        }
+      >
         <Plus className="h-4 w-4" />
-        Nouveau groupe
+        {variant === "tile" ? (
+          <span className="font-mono text-xs uppercase tracking-wide">Nouveau groupe</span>
+        ) : (
+          "Nouveau groupe"
+        )}
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>

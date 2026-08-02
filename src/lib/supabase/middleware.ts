@@ -1,10 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback"];
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/api/supabase-health"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const isPublicPath = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+
+  if (isPublicPath) {
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,11 +30,8 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isPublicPath = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+  const { data, error } = await supabase.auth.getUser();
+  const user = error ? null : data.user;
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

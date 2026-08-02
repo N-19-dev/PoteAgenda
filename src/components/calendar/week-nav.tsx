@@ -19,17 +19,18 @@ export function WeekNav({ weekStart }: { weekStart: Date }) {
   const isCurrentWeek = isSameDay(weekStart, getWeekStart(new Date()));
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="glass-panel flex items-center justify-between gap-2 rounded-xl px-2 py-1.5">
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
+        className="group"
         onClick={() => go(addDays(weekStart, -7))}
         aria-label="Semaine précédente"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
       </Button>
 
-      <div className="flex items-center gap-2 text-sm font-medium">
+      <div className="flex items-center gap-2 font-mono text-sm font-medium tabular-nums">
         <span>
           {format(weekStart, "d MMM", { locale: fr })} – {format(weekEnd, "d MMM", { locale: fr })}
         </span>
@@ -37,7 +38,7 @@ export function WeekNav({ weekStart }: { weekStart: Date }) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-xs text-primary"
             onClick={() => go(getWeekStart(new Date()))}
           >
             Aujourd&apos;hui
@@ -46,12 +47,13 @@ export function WeekNav({ weekStart }: { weekStart: Date }) {
       </div>
 
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
+        className="group"
         onClick={() => go(addDays(weekStart, 7))}
         aria-label="Semaine suivante"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </Button>
     </div>
   );

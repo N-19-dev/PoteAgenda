@@ -7,6 +7,7 @@ import { Search, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { searchProfiles, sendFriendRequest } from "@/lib/actions/friends";
 import type { Profile } from "@/lib/supabase/types";
 
@@ -60,9 +61,9 @@ export function AddFriend() {
       </div>
 
       {results.length > 0 && (
-        <ul className="space-y-1.5 rounded-lg border border-border p-1.5">
+        <ListRowGroup>
           {results.map((p) => (
-            <li key={p.id} className="flex items-center justify-between rounded-md px-2 py-1.5">
+            <ListRow key={p.id}>
               <div className="flex items-center gap-2.5">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
@@ -81,9 +82,9 @@ export function AddFriend() {
                 <UserPlus className="h-3.5 w-3.5" />
                 Ajouter
               </Button>
-            </li>
+            </ListRow>
           ))}
-        </ul>
+        </ListRowGroup>
       )}
     </div>
   );

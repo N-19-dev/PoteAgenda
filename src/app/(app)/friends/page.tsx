@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AddFriend } from "@/components/friends/add-friend";
 import { FriendRequests } from "@/components/friends/friend-requests";
 import { FriendList } from "@/components/friends/friend-list";
+import { cn } from "@/lib/utils";
 import type { FriendshipStatus, Profile } from "@/lib/supabase/types";
 
 interface FriendshipRow {
@@ -41,17 +42,30 @@ export default async function FriendsPage() {
     }));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Amis</h1>
-        <p className="text-sm text-muted-foreground">
-          Ajoute des amis pour les inviter dans tes groupes.
-        </p>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-primary">{accepted.length} ami{accepted.length > 1 ? "s" : ""}</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Amis</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ajoute des amis pour voir leurs disponibilités et leur envoyer une invitation directe.
+          </p>
+        </div>
       </div>
 
       <AddFriend />
-      <FriendRequests requests={incomingRequests} />
-      <FriendList friends={accepted} />
+
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3",
+          incomingRequests.length > 0 && "sm:grid-cols-[1fr_1.4fr]",
+        )}
+      >
+        {incomingRequests.length > 0 && (
+          <FriendRequests requests={incomingRequests} />
+        )}
+        <FriendList friends={accepted} />
+      </div>
     </div>
   );
 }

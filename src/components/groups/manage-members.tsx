@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Trash2, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { addGroupMember, removeGroupMember } from "@/lib/actions/groups";
 import type { Profile } from "@/lib/supabase/types";
 
@@ -53,15 +54,12 @@ export function ManageMembers({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
           Membres ({members.length})
         </h2>
-        <ul className="space-y-1.5">
+        <ListRowGroup>
           {members.map((m) => (
-            <li
-              key={m.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2"
-            >
+            <ListRow key={m.id}>
               <div className="flex items-center gap-2.5">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
@@ -91,25 +89,24 @@ export function ManageMembers({
                   Quitter
                 </Button>
               )}
-            </li>
+            </ListRow>
           ))}
-        </ul>
+        </ListRowGroup>
       </div>
 
       {isOwner && (
         <div className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">Ajouter un ami</h2>
+          <h2 className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+            Ajouter un ami
+          </h2>
           {availableFriends.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Tous tes amis sont déjà dans ce groupe.
             </p>
           ) : (
-            <ul className="space-y-1.5">
+            <ListRowGroup>
               {availableFriends.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                >
+                <ListRow key={f.id}>
                   <div className="flex items-center gap-2.5">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="text-xs">
@@ -128,9 +125,9 @@ export function ManageMembers({
                     <UserPlus className="h-3.5 w-3.5" />
                     Ajouter
                   </Button>
-                </li>
+                </ListRow>
               ))}
-            </ul>
+            </ListRowGroup>
           )}
         </div>
       )}

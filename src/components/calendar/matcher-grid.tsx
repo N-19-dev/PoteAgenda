@@ -29,9 +29,9 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
 
   const cellClassName = (day: number, slot: number) => {
     const s = status(day, slot);
-    if (s === "free-all") return "bg-emerald-500/25 hover:bg-emerald-500/35";
-    if (s === "busy-all") return "bg-muted/80";
-    return "bg-transparent hover:bg-accent/40";
+    if (s === "free-all") return "bg-emerald-500/20 hover:bg-emerald-500/30";
+    if (s === "busy-all") return "bg-busy-other hover:bg-busy-other";
+    return "bg-amber-400/15 hover:bg-amber-400/25";
   };
 
   const selectedInfo =
@@ -49,13 +49,17 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
     <div className="space-y-3">
       <WeekNav weekStart={weekStart} />
 
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+      <div className="glass-panel flex flex-wrap items-center gap-3 rounded-xl px-3 py-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-emerald-500/60" />
+          <span className="h-3 w-3 rounded-sm bg-emerald-500/50" />
           Tout le monde est libre
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-muted" />
+          <span className="h-3 w-3 rounded-sm bg-amber-400/40" />
+          Certains sont occupés
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-busy-other" />
           Personne n&apos;est libre
         </span>
         <span className="text-[11px]">Touche un créneau pour voir qui est dispo</span>
@@ -79,7 +83,7 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
               <DialogHeader>
                 <DialogTitle>
                   {format(selectedInfo.date, "EEEE d MMMM", { locale: fr })} ·{" "}
-                  {minutesToLabel(selectedInfo.minutes)}
+                  <span className="tabular-nums">{minutesToLabel(selectedInfo.minutes)}</span>
                 </DialogTitle>
               </DialogHeader>
               <ul className="space-y-1.5">
@@ -94,11 +98,11 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
                       {m.username}
                     </span>
                     {m.busy ? (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                         <X className="h-3.5 w-3.5" /> Occupé
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-emerald-500">
+                      <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-emerald-500">
                         <Check className="h-3.5 w-3.5" /> Libre
                       </span>
                     )}

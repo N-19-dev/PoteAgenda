@@ -17,7 +17,7 @@ export default async function CalendarsPage() {
     .order("created_at");
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Link
         href="/agenda"
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -27,7 +27,7 @@ export default async function CalendarsPage() {
       </Link>
 
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Mes calendriers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Mes calendriers</h1>
         <p className="text-sm text-muted-foreground">
           Importe un calendrier externe (.ics) pour remplir automatiquement tes indisponibilités.
         </p>

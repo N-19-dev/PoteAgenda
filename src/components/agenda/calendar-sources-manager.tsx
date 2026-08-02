@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { deleteCalendarSource } from "@/lib/actions/calendar-sources";
 import type { CalendarSource } from "@/lib/supabase/types";
@@ -185,12 +186,9 @@ export function CalendarSourcesManager({ sources }: { sources: CalendarSource[] 
       {sources.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucun calendrier connecté pour l&apos;instant.</p>
       ) : (
-        <ul className="space-y-2">
+        <ListRowGroup>
           {sources.map((source) => (
-            <li
-              key={source.id}
-              className="flex items-center justify-between gap-2 rounded-lg border border-border p-3"
-            >
+            <ListRow key={source.id}>
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-medium">{source.label}</span>
@@ -221,9 +219,9 @@ export function CalendarSourcesManager({ sources }: { sources: CalendarSource[] 
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-            </li>
+            </ListRow>
           ))}
-        </ul>
+        </ListRowGroup>
       )}
 
       <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>

@@ -23,10 +23,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -43,11 +40,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          forcedTheme="light"
           enableSystem={false}
           disableTransitionOnChange
         >
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col sm:max-w-2xl">
+          <div className="flex w-full flex-1 flex-col">
             {children}
           </div>
           <Toaster richColors position="top-center" />
