@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { AgendaEditor } from "@/components/agenda/agenda-editor";
 import { parseDateParam, rangeForView, type CalendarView } from "@/lib/schedule";
-import type { BusyEvent, CalendarEvent, FriendshipStatus, Outing, Profile } from "@/lib/supabase/types";
+import type { BusyEvent, CalendarEvent, FriendshipStatus, OutingResponse, Profile } from "@/lib/supabase/types";
 
 interface PageProps {
   searchParams: Promise<{ view?: string; date?: string; friends?: string }>;
@@ -77,6 +77,14 @@ export default async function AgendaPage({ searchParams }: PageProps) {
       .lt("starts_at", rangeEnd.toISOString()).gt("ends_at", rangeStart.toISOString())
     : { data: [] };
 
+  const myResponseByOuting = new Map(
+    (participationRows ?? []).map((row) => [row.outing_id, row.response as OutingResponse]),
+  );
+  const outingsWithResponse = (outings ?? []).map((outing) => ({
+    ...outing,
+    myResponse: myResponseByOuting.get(outing.id) ?? "accepted",
+  }));
+
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div>
@@ -91,7 +99,8 @@ export default async function AgendaPage({ searchParams }: PageProps) {
         friends={friends}
         selectedFriendIds={selectedFriendIds}
         friendsBusyEvents={friendsBusyEvents}
-        outings={(outings ?? []) as Outing[]}
+        outings={outingsWithResponse}
+        currentUserId={user!.id}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { MapPin, Trash2, Users } from "lucide-react";
+import { Clock, MapPin, Trash2, Users } from "lucide-react";
 import { WeekGrid, type SlotSelection } from "@/components/calendar/week-grid";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { MiniCalendar } from "@/components/calendar/mini-calendar";
@@ -40,7 +40,9 @@ import {
 } from "@/lib/schedule";
 import { addCalendarEvent, deleteCalendarEvent } from "@/lib/actions/calendar-events";
 import { createOuting } from "@/lib/actions/outings";
-import type { BusyEvent, CalendarEvent, Outing, Profile } from "@/lib/supabase/types";
+import type { BusyEvent, CalendarEvent, Outing, OutingResponse, Profile } from "@/lib/supabase/types";
+
+type OutingWithResponse = Outing & { myResponse: OutingResponse };
 
 export function AgendaEditor({
   view,
@@ -50,6 +52,7 @@ export function AgendaEditor({
   selectedFriendIds,
   friendsBusyEvents,
   outings,
+  currentUserId,
 }: {
   view: CalendarView;
   anchorDate: Date;
@@ -57,7 +60,8 @@ export function AgendaEditor({
   friends: Profile[];
   selectedFriendIds: string[];
   friendsBusyEvents: BusyEvent[];
-  outings: Outing[];
+  outings: OutingWithResponse[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -76,7 +80,7 @@ export function AgendaEditor({
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [toDelete, setToDelete] = useState<CalendarEvent | null>(null);
-  const [viewingOuting, setViewingOuting] = useState<Outing | null>(null);
+  const [viewingOuting, setViewingOuting] = useState<OutingWithResponse | null>(null);
 
   function navigateTo(date: Date, viewOverride?: CalendarView) {
     const params = new URLSearchParams(searchParams.toString());
@@ -127,7 +131,7 @@ export function AgendaEditor({
   }, [events, gridDates]);
 
   const outingByCell = useMemo(() => {
-    const map = new Map<string, Outing>();
+    const map = new Map<string, OutingWithResponse>();
     for (const outing of outings) {
       const startAt = new Date(outing.starts_at);
       const endAt = new Date(outing.ends_at);
@@ -298,7 +302,11 @@ export function AgendaEditor({
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-sm bg-primary/20" />
-                Sortie / invitation
+                Sortie confirmée
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-amber-400/70 bg-amber-400/10" />
+                Invitation en attente
               </span>
               {selectedFriends.length > 0 && (
                 <span className="flex items-center gap-1.5">
@@ -344,15 +352,32 @@ export function AgendaEditor({
                             )}
                           </div>
                         )}
-                        {outing && (
-                          <div className="absolute inset-0 bg-primary/20" title={outing.title}>
-                            {isSlotStart(outing.starts_at, day, slot) && (
-                              <span className="block truncate px-1 pt-0.5 text-[10px] font-semibold text-primary">
-                                {outing.title}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        {outing && (() => {
+                          const isPendingInvite = outing.myResponse === "pending" && outing.creator_id !== currentUserId;
+                          return (
+                            <div
+                              className={cn(
+                                "absolute inset-0",
+                                isPendingInvite
+                                  ? "border border-dashed border-amber-400/70 bg-amber-400/10"
+                                  : "bg-primary/20",
+                              )}
+                              title={outing.title}
+                            >
+                              {isSlotStart(outing.starts_at, day, slot) && (
+                                <span
+                                  className={cn(
+                                    "flex items-center gap-0.5 truncate px-1 pt-0.5 text-[10px] font-semibold",
+                                    isPendingInvite ? "text-amber-600 dark:text-amber-400" : "text-primary",
+                                  )}
+                                >
+                                  {isPendingInvite ? <Clock className="h-2.5 w-2.5 shrink-0" /> : <Users className="h-2.5 w-2.5 shrink-0" />}
+                                  <span className="truncate">{outing.title}</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {busyFriendIds.length > 0 && (
                           <div className="absolute inset-x-0.5 bottom-0.5 flex justify-center gap-1">
                             {busyFriendIds.slice(0, 4).map((id) => (
@@ -522,6 +547,17 @@ export function AgendaEditor({
           </DialogHeader>
           {viewingOuting && (
             <div className="space-y-1.5 text-sm text-muted-foreground">
+              {viewingOuting.myResponse === "pending" && viewingOuting.creator_id !== currentUserId ? (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                  <Clock className="size-3.5" />
+                  Invitation en attente de ta réponse
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                  <Users className="size-3.5" />
+                  Sortie confirmée
+                </p>
+              )}
               <p>
                 {format(new Date(viewingOuting.starts_at), "EEEE d MMMM", { locale: fr })} ·{" "}
                 {format(new Date(viewingOuting.starts_at), "HH:mm")} –{" "}
