@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cancelOuting, respondToOuting, updateOuting } from "@/lib/actions/outings";
 import type { Outing, OutingParticipant, Profile } from "@/lib/supabase/types";
+import { DateTimeFields, dateTimePartsToISOString, isoStringToDateTimeParts, type DateTimeParts } from "./date-time-fields";
 
 export type InvitationItem = { outing: Outing; participants: (OutingParticipant & { profile: Profile })[] };
 
@@ -71,12 +72,6 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
   })}<EditOutingDialog outing={editing} onClose={() => setEditing(null)} isPending={isPending} startTransition={startTransition} /></div>;
 }
 
-function toDateTimeLocal(value: string) {
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
 function EditOutingDialog({
   outing,
   onClose,
@@ -88,25 +83,56 @@ function EditOutingDialog({
   isPending: boolean;
   startTransition: React.TransitionStartFunction;
 }) {
-  const router = useRouter();
-
   function openChange(open: boolean) {
     if (!open) onClose();
   }
 
+  return (
+    <Dialog open={!!outing} onOpenChange={openChange}>
+      <DialogContent className="sm:max-w-lg">
+        {outing && (
+          <EditOutingForm
+            key={outing.id}
+            outing={outing}
+            onClose={onClose}
+            isPending={isPending}
+            startTransition={startTransition}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditOutingForm({
+  outing,
+  onClose,
+  isPending,
+  startTransition,
+}: {
+  outing: Outing;
+  onClose: () => void;
+  isPending: boolean;
+  startTransition: React.TransitionStartFunction;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(outing.title);
+  const [starts, setStarts] = useState<DateTimeParts>(() => isoStringToDateTimeParts(outing.starts_at));
+  const [ends, setEnds] = useState<DateTimeParts>(() => isoStringToDateTimeParts(outing.ends_at));
+  const [location, setLocation] = useState(outing.location ?? "");
+  const [note, setNote] = useState(outing.note ?? "");
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!outing) return;
-    const form = new FormData(event.currentTarget as HTMLFormElement);
     startTransition(async () => {
       try {
         await updateOuting({
           outingId: outing.id,
-          title: String(form.get("title") ?? ""),
-          startsAt: new Date(String(form.get("startsAt") ?? "")).toISOString(),
-          endsAt: new Date(String(form.get("endsAt") ?? "")).toISOString(),
-          location: String(form.get("location") ?? ""),
-          note: String(form.get("note") ?? ""),
+          title,
+          startsAt: dateTimePartsToISOString(starts),
+          endsAt: dateTimePartsToISOString(ends),
+          location,
+          note,
         });
         toast.success("Sortie mise à jour");
         onClose();
@@ -118,22 +144,18 @@ function EditOutingDialog({
   }
 
   return (
-    <Dialog open={!!outing} onOpenChange={openChange}>
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={submit}>
-          <DialogHeader><DialogTitle>Modifier la sortie</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-5">
-            <div className="space-y-1.5"><Label htmlFor="edit-outing-title">Nom</Label><Input id="edit-outing-title" name="title" defaultValue={outing?.title} required /></div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="edit-outing-start">Début</Label><Input id="edit-outing-start" name="startsAt" type="datetime-local" defaultValue={outing ? toDateTimeLocal(outing.starts_at) : ""} required /></div>
-              <div className="space-y-1.5"><Label htmlFor="edit-outing-end">Fin</Label><Input id="edit-outing-end" name="endsAt" type="datetime-local" defaultValue={outing ? toDateTimeLocal(outing.ends_at) : ""} required /></div>
-            </div>
-            <div className="space-y-1.5"><Label htmlFor="edit-outing-location">Lieu</Label><Input id="edit-outing-location" name="location" defaultValue={outing?.location ?? ""} /></div>
-            <div className="space-y-1.5"><Label htmlFor="edit-outing-note">Note</Label><Textarea id="edit-outing-note" name="note" defaultValue={outing?.note ?? ""} /></div>
-          </div>
-          <DialogFooter><Button type="submit" disabled={isPending}>Enregistrer</Button></DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <form onSubmit={submit}>
+      <DialogHeader><DialogTitle>Modifier la sortie</DialogTitle></DialogHeader>
+      <div className="space-y-4 py-5">
+        <div className="space-y-1.5"><Label htmlFor="edit-outing-title">Nom</Label><Input id="edit-outing-title" value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DateTimeFields legend="Début" idPrefix="edit-outing-start" value={starts} onChange={setStarts} />
+          <DateTimeFields legend="Fin" idPrefix="edit-outing-end" value={ends} onChange={setEnds} />
+        </div>
+        <div className="space-y-1.5"><Label htmlFor="edit-outing-location">Lieu</Label><Input id="edit-outing-location" value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+        <div className="space-y-1.5"><Label htmlFor="edit-outing-note">Note</Label><Textarea id="edit-outing-note" value={note} onChange={(e) => setNote(e.target.value)} /></div>
+      </div>
+      <DialogFooter><Button type="submit" disabled={isPending}>Enregistrer</Button></DialogFooter>
+    </form>
   );
 }

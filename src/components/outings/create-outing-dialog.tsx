@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createOuting } from "@/lib/actions/outings";
 import type { Group, Profile } from "@/lib/supabase/types";
+import { DateTimeFields, dateTimePartsToISOString, emptyDateTimeParts, type DateTimeParts } from "./date-time-fields";
 
 export function CreateOutingDialog({
   friends,
@@ -23,8 +24,8 @@ export function CreateOutingDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
+  const [starts, setStarts] = useState<DateTimeParts>(emptyDateTimeParts);
+  const [ends, setEnds] = useState<DateTimeParts>(emptyDateTimeParts);
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [friendIds, setFriendIds] = useState<string[]>([]);
@@ -37,7 +38,7 @@ export function CreateOutingDialog({
   }
 
   function reset() {
-    setTitle(""); setStartsAt(""); setEndsAt(""); setLocation(""); setNote(""); setFriendIds([]); setGroupId(defaultGroupId);
+    setTitle(""); setStarts(emptyDateTimeParts); setEnds(emptyDateTimeParts); setLocation(""); setNote(""); setFriendIds([]); setGroupId(defaultGroupId);
   }
 
   function submit(event: React.FormEvent) {
@@ -46,8 +47,8 @@ export function CreateOutingDialog({
       try {
         await createOuting({
           title,
-          startsAt: new Date(startsAt).toISOString(),
-          endsAt: new Date(endsAt).toISOString(),
+          startsAt: dateTimePartsToISOString(starts),
+          endsAt: dateTimePartsToISOString(ends),
           location,
           note,
           friendIds,
@@ -71,15 +72,15 @@ export function CreateOutingDialog({
           <div className="space-y-4 py-5">
             <div className="space-y-1.5"><Label htmlFor="outing-title">Nom de la sortie</Label><Input id="outing-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Dîner chez Marco" autoFocus required /></div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="outing-start">Début</Label><Input id="outing-start" type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required /></div>
-              <div className="space-y-1.5"><Label htmlFor="outing-end">Fin</Label><Input id="outing-end" type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} required /></div>
+              <DateTimeFields legend="Début" idPrefix="outing-start" value={starts} onChange={setStarts} />
+              <DateTimeFields legend="Fin" idPrefix="outing-end" value={ends} onChange={setEnds} />
             </div>
             <div className="space-y-1.5"><Label htmlFor="outing-location">Lieu <span className="font-normal text-muted-foreground">(facultatif)</span></Label><Input id="outing-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Canal Saint-Martin" /></div>
             <div className="space-y-1.5"><Label>Inviter un groupe <span className="font-normal text-muted-foreground">(facultatif)</span></Label><select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Aucun groupe</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div>
             {friends.length > 0 && <fieldset className="space-y-2"><legend className="text-sm font-medium">Inviter des amis</legend><div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{friends.map((friend) => <label key={friend.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"><input type="checkbox" checked={friendIds.includes(friend.id)} onChange={() => toggleFriend(friend.id)} className="accent-primary" />{friend.username}</label>)}</div></fieldset>}
             <div className="space-y-1.5"><Label htmlFor="outing-note">Note <span className="font-normal text-muted-foreground">(facultatif)</span></Label><Textarea id="outing-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="On réserve une table ?" /></div>
           </div>
-          <DialogFooter><Button type="submit" disabled={isPending || !title.trim() || !startsAt || !endsAt || (friendIds.length === 0 && !groupId)}>{isPending ? "Envoi…" : "Envoyer l'invitation"}</Button></DialogFooter>
+          <DialogFooter><Button type="submit" disabled={isPending || !title.trim() || !starts.date || !starts.hour || !starts.minute || !ends.date || !ends.hour || !ends.minute || (friendIds.length === 0 && !groupId)}>{isPending ? "Envoi…" : "Envoyer l'invitation"}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
