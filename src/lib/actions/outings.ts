@@ -60,11 +60,17 @@ export async function createOuting(input: CreateOutingInput) {
     const { data: members, error: membersError } = await supabase
       .from("group_members").select("user_id").eq("group_id", group.id);
     if (membersError) throw membersError;
-    groupMemberIds = (members ?? []).map((member) => member.user_id);
+    groupMemberIds = (members ?? []).map((member) => member.user_id).filter((id) => id !== user.id);
   }
 
   const recipientIds = [...new Set([...requestedFriendIds, ...groupMemberIds])];
-  if (recipientIds.length === 0) throw new Error("Ajoutez au moins un invité ou un groupe");
+  if (recipientIds.length === 0) {
+    throw new Error(
+      input.groupId
+        ? "Ce groupe n'a pas d'autre membre à inviter"
+        : "Ajoutez au moins un invité ou un groupe",
+    );
+  }
 
   const { data: outing, error } = await supabase
     .from("outings")
