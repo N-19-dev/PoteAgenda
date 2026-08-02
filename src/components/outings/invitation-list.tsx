@@ -21,10 +21,14 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
   const [editing, setEditing] = useState<Outing | null>(null);
   const router = useRouter();
 
-  function respond(outingId: string, response: "accepted" | "declined") {
+  function respond(outingId: string, response: "accepted" | "declined" | "pending") {
     startTransition(async () => {
-      try { await respondToOuting(outingId, response); toast.success(response === "accepted" ? "Tu viens à cette sortie" : "Réponse enregistrée"); }
-      catch { toast.error("Impossible d'enregistrer ta réponse"); }
+      try {
+        await respondToOuting(outingId, response);
+        toast.success(
+          response === "accepted" ? "Tu viens à cette sortie" : response === "declined" ? "Réponse enregistrée" : "Réponse annulée",
+        );
+      } catch { toast.error("Impossible d'enregistrer ta réponse"); }
     });
   }
 
@@ -51,8 +55,17 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
       <div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">{outing.title}</h2><p className="mt-1 text-sm text-muted-foreground">{format(new Date(outing.starts_at), "EEEE d MMMM · HH:mm", { locale: fr })} – {format(new Date(outing.ends_at), "HH:mm", { locale: fr })}</p>{outing.location && <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="size-3.5" />{outing.location}</p>}</div><span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{outing.cancelled_at ? "Annulée" : `${accepted.length} présent${accepted.length > 1 ? "s" : ""}`}</span></div>
       {outing.note && <p className="mt-3 text-sm">{outing.note}</p>}
       <p className="mt-4 text-xs text-muted-foreground"><strong className="font-medium text-foreground">Présents :</strong> {accepted.map((participant) => participant.profile.username).join(", ") || "Personne"}{pending.length > 0 && ` · ${pending.length} en attente`}</p>
-      {mine?.response === "pending" && !outing.cancelled_at && <div className="mt-4 flex gap-2"><Button size="sm" onClick={() => respond(outing.id, "accepted")} disabled={isPending}><Check />Présent</Button><Button size="sm" variant="outline" onClick={() => respond(outing.id, "declined")} disabled={isPending}><X />Absent</Button></div>}
-      {mine?.response !== "pending" && !outing.cancelled_at && <p className="mt-4 text-sm font-medium text-primary">{mine?.response === "accepted" ? "Tu participes" : "Tu ne participes pas"}</p>}
+      {mine && !outing.cancelled_at && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button size="sm" variant={mine.response === "accepted" ? "default" : "outline"} onClick={() => respond(outing.id, "accepted")} disabled={isPending}><Check />Présent</Button>
+          <Button size="sm" variant={mine.response === "declined" ? "default" : "outline"} onClick={() => respond(outing.id, "declined")} disabled={isPending}><X />Absent</Button>
+          {mine.response !== "pending" && (
+            <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => respond(outing.id, "pending")} disabled={isPending}>
+              Annuler ma réponse
+            </Button>
+          )}
+        </div>
+      )}
       {isCreator && !outing.cancelled_at && <div className="mt-4 flex flex-wrap gap-2"><Button className="gap-1.5" size="sm" variant="outline" disabled={isPending} onClick={() => setEditing(outing)}><Pencil className="size-3.5" />Modifier</Button><Button className="gap-1.5" size="sm" variant="destructive" disabled={isPending} onClick={() => cancel(outing.id)}><Trash2 className="size-3.5" />Annuler la sortie</Button></div>}
     </article>;
   })}<EditOutingDialog outing={editing} onClose={() => setEditing(null)} isPending={isPending} startTransition={startTransition} /></div>;

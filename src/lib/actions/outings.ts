@@ -99,12 +99,14 @@ export async function createOuting(input: CreateOutingInput) {
 }
 
 export async function respondToOuting(outingId: string, response: OutingResponse) {
-  if (response !== "accepted" && response !== "declined") throw new Error("Réponse invalide");
+  if (response !== "accepted" && response !== "declined" && response !== "pending") {
+    throw new Error("Réponse invalide");
+  }
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Non authentifié");
   const { error } = await supabase.from("outing_participants")
-    .update({ response, responded_at: new Date().toISOString() })
+    .update({ response, responded_at: response === "pending" ? null : new Date().toISOString() })
     .eq("outing_id", outingId).eq("user_id", user.id);
   if (error) throw error;
   revalidatePath("/agenda");
