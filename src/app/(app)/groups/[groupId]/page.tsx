@@ -94,6 +94,7 @@ export default async function GroupMatcherPage({ params, searchParams }: PagePro
       ) : (
         <MatcherGrid
           weekStart={weekStart}
+          groupId={groupId}
           members={members}
           busyEvents={(busyEvents ?? []) as BusyEvent[]}
         />

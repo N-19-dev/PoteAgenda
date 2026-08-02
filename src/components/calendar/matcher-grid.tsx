@@ -1,25 +1,39 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 import { WeekGrid } from "@/components/calendar/week-grid";
 import { WeekNav } from "@/components/calendar/week-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { buildBusyGrid, getWeekDates, minutesToLabel, slotIndexToMinutes, slotStatus } from "@/lib/schedule";
+import { SLOTS_PER_DAY, buildBusyGrid, getWeekDates, minutesToLabel, slotIndexToMinutes, slotRangeToTimes, slotStatus } from "@/lib/schedule";
+import { createOuting } from "@/lib/actions/outings";
 import type { BusyEvent, Profile } from "@/lib/supabase/types";
-import { Check, X } from "lucide-react";
+import { CalendarPlus, Check, X } from "lucide-react";
 
 interface MatcherGridProps {
   weekStart: Date;
+  groupId: string;
   members: Profile[];
   busyEvents: BusyEvent[];
 }
 
-export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps) {
+const DURATION_PRESETS_SLOTS = [1, 2, 3, 4];
+
+export function MatcherGrid({ weekStart, groupId, members, busyEvents }: MatcherGridProps) {
   const [selected, setSelected] = useState<{ day: number; slot: number } | null>(null);
+  const [creatingOuting, setCreatingOuting] = useState(false);
+  const [outingTitle, setOutingTitle] = useState("");
+  const [durationSlots, setDurationSlots] = useState(1);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const grid = useMemo(() => buildBusyGrid(busyEvents, weekDates), [busyEvents, weekDates]);
@@ -44,6 +58,38 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
         members: members.map((m) => ({ ...m, busy: busyIds.has(m.id) })),
       };
     })();
+
+  function closeDialog() {
+    setSelected(null);
+    setCreatingOuting(false);
+    setOutingTitle("");
+    setDurationSlots(1);
+  }
+
+  function submitOuting() {
+    if (!selected) return;
+    const { start_at, end_at } = slotRangeToTimes(
+      weekDates[selected.day],
+      selected.slot,
+      Math.min(SLOTS_PER_DAY, selected.slot + durationSlots),
+    );
+    startTransition(async () => {
+      try {
+        await createOuting({
+          title: outingTitle.trim() || "Sortie",
+          startsAt: start_at,
+          endsAt: end_at,
+          friendIds: [],
+          groupId,
+        });
+        toast.success("Invitation envoyée à tout le groupe");
+        closeDialog();
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Impossible de créer la sortie");
+      }
+    });
+  }
 
   return (
     <div className="space-y-3">
@@ -74,11 +120,11 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
       <Dialog
         open={!!selected}
         onOpenChange={(open) => {
-          if (!open) setSelected(null);
+          if (!open) closeDialog();
         }}
       >
         <DialogContent>
-          {selectedInfo && (
+          {selectedInfo && !creatingOuting && (
             <>
               <DialogHeader>
                 <DialogTitle>
@@ -109,6 +155,65 @@ export function MatcherGrid({ weekStart, members, busyEvents }: MatcherGridProps
                   </li>
                 ))}
               </ul>
+              {status(selected!.day, selected!.slot) === "free-all" && (
+                <Button className="mt-4 gap-1.5" size="sm" onClick={() => setCreatingOuting(true)}>
+                  <CalendarPlus className="size-4" />
+                  Créer une sortie sur ce créneau
+                </Button>
+              )}
+            </>
+          )}
+          {selectedInfo && creatingOuting && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Sortie · {format(selectedInfo.date, "EEEE d MMMM", { locale: fr })}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="matcher-outing-title">Nom de la sortie</Label>
+                  <Input
+                    id="matcher-outing-title"
+                    value={outingTitle}
+                    onChange={(e) => setOutingTitle(e.target.value)}
+                    placeholder="Dîner chez Marco"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Durée</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DURATION_PRESETS_SLOTS.map((slots) => (
+                      <button
+                        key={slots}
+                        type="button"
+                        onClick={() => setDurationSlots(slots)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs transition-colors",
+                          durationSlots === slots
+                            ? "border-primary/40 bg-accent text-foreground"
+                            : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {slots * 30 < 60 ? `${slots * 30} min` : `${(slots * 30) / 60} h`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {minutesToLabel(selectedInfo.minutes)} –{" "}
+                  {minutesToLabel(selectedInfo.minutes + durationSlots * 30)} · Invite tout le groupe ({members.length} membre{members.length > 1 ? "s" : ""}).
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setCreatingOuting(false)} disabled={isPending}>
+                  Retour
+                </Button>
+                <Button size="sm" onClick={submitOuting} disabled={isPending}>
+                  {isPending ? "Envoi…" : "Envoyer l'invitation"}
+                </Button>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
