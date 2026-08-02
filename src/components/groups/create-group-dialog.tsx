@@ -17,24 +17,37 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createGroup } from "@/lib/actions/groups";
 import { toast } from "sonner";
+import type { Profile } from "@/lib/supabase/types";
 
-export function CreateGroupDialog({ variant = "button" }: { variant?: "button" | "tile" }) {
+export function CreateGroupDialog({
+  variant = "button",
+  friends = [],
+}: {
+  variant?: "button" | "tile";
+  friends?: Profile[];
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [memberIds, setMemberIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  function toggleMember(id: string) {
+    setMemberIds((ids) => (ids.includes(id) ? ids.filter((memberId) => memberId !== id) : [...ids, id]));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     startTransition(async () => {
       try {
-        const group = await createGroup(name.trim(), description.trim() || null);
+        const group = await createGroup(name.trim(), description.trim() || null, memberIds);
         toast.success("Groupe créé");
         setOpen(false);
         setName("");
         setDescription("");
+        setMemberIds([]);
         router.push(`/groups/${group.id}`);
       } catch {
         toast.error("Impossible de créer le groupe");
@@ -88,6 +101,27 @@ export function CreateGroupDialog({ variant = "button" }: { variant?: "button" |
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
+            {friends.length > 0 && (
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Ajouter des membres (optionnel)</legend>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                  {friends.map((friend) => (
+                    <label
+                      key={friend.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={memberIds.includes(friend.id)}
+                        onChange={() => toggleMember(friend.id)}
+                        className="accent-primary"
+                      />
+                      {friend.username}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isPending || !name.trim()}>

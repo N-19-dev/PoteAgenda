@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function createGroup(name: string, description: string | null) {
+export async function createGroup(name: string, description: string | null, memberIds: string[] = []) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,9 +17,11 @@ export async function createGroup(name: string, description: string | null) {
     .single();
   if (error) throw error;
 
-  const { error: memberError } = await supabase
-    .from("group_members")
-    .insert({ group_id: group.id, user_id: user.id, role: "owner" });
+  const otherMemberIds = [...new Set(memberIds)].filter((id) => id !== user.id);
+  const { error: memberError } = await supabase.from("group_members").insert([
+    { group_id: group.id, user_id: user.id, role: "owner" },
+    ...otherMemberIds.map((userId) => ({ group_id: group.id, user_id: userId, role: "member" as const })),
+  ]);
   if (memberError) throw memberError;
 
   revalidatePath("/groups");

@@ -2,7 +2,16 @@ import Link from "next/link";
 import { ChevronRight, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
-import type { Group } from "@/lib/supabase/types";
+import type { FriendshipStatus, Group, Profile } from "@/lib/supabase/types";
+
+interface FriendshipRow {
+  id: string;
+  status: FriendshipStatus;
+  requester_id: string;
+  addressee_id: string;
+  requester: Profile;
+  addressee: Profile;
+}
 
 export default async function GroupsPage() {
   const supabase = await createClient();
@@ -18,6 +27,19 @@ export default async function GroupsPage() {
 
   const groups = (memberships ?? []).map((m) => m.groups).filter(Boolean);
 
+  const { data: friendshipRows } = await supabase
+    .from("friendships")
+    .select(
+      "id, status, requester_id, addressee_id, requester:profiles!friendships_requester_id_fkey(*), addressee:profiles!friendships_addressee_id_fkey(*)",
+    )
+    .or(`requester_id.eq.${user!.id},addressee_id.eq.${user!.id}`)
+    .eq("status", "accepted")
+    .returns<FriendshipRow[]>();
+
+  const friends: Profile[] = (friendshipRows ?? []).map((r) =>
+    r.requester_id === user!.id ? r.addressee : r.requester,
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -28,7 +50,7 @@ export default async function GroupsPage() {
             Invite un groupe complet à une sortie et suis les réponses de chacun.
           </p>
         </div>
-        {groups.length > 0 && <CreateGroupDialog />}
+        {groups.length > 0 && <CreateGroupDialog friends={friends} />}
       </div>
 
       {groups.length === 0 ? (
@@ -37,7 +59,7 @@ export default async function GroupsPage() {
           <p className="text-sm text-muted-foreground">
             Crée un premier groupe pour trouver un créneau avec tes potes.
           </p>
-          <CreateGroupDialog />
+          <CreateGroupDialog friends={friends} />
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
