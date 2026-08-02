@@ -100,5 +100,6 @@ export interface OutingParticipant {
   user_id: string;
   response: OutingResponse;
   responded_at: string | null;
+  reminded_at: string | null;
   created_at: string;
 }

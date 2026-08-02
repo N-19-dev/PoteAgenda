@@ -142,6 +142,18 @@ export async function updateOuting(input: UpdateOutingInput) {
   revalidatePath("/groups");
 }
 
+export async function remindOutingParticipant(outingId: string, userId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non authentifié");
+  const { error } = await supabase.rpc("remind_outing_participant", {
+    p_outing_id: outingId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  revalidatePath("/invitations");
+}
+
 export async function cancelOuting(outingId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

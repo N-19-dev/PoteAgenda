@@ -4,14 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronDown, Clock, MapPin, Pencil, Trash2, X } from "lucide-react";
+import { Bell, Check, ChevronDown, Clock, MapPin, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cancelOuting, respondToOuting, updateOuting } from "@/lib/actions/outings";
+import { cancelOuting, remindOutingParticipant, respondToOuting, updateOuting } from "@/lib/actions/outings";
 import type { Outing, OutingParticipant, Profile } from "@/lib/supabase/types";
 import { DateTimeFields, dateTimePartsToISOString, isoStringToDateTimeParts, type DateTimeParts } from "./date-time-fields";
 
@@ -40,6 +40,18 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
           response === "accepted" ? "Tu viens à cette sortie" : response === "declined" ? "Réponse enregistrée" : "Réponse annulée",
         );
       } catch { toast.error("Impossible d'enregistrer ta réponse"); }
+    });
+  }
+
+  function remind(outingId: string, userId: string) {
+    startTransition(async () => {
+      try {
+        await remindOutingParticipant(outingId, userId);
+        toast.success("Relance enregistrée — visible à sa prochaine visite");
+        router.refresh();
+      } catch {
+        toast.error("Impossible de relancer");
+      }
     });
   }
 
@@ -80,8 +92,20 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
         <div className="mt-2 space-y-1.5 rounded-md border border-border/60 bg-muted/30 p-3 text-xs">
           <ParticipantStatusRow label="Présents" icon={<Check className="size-3.5 text-primary" />} participants={accepted} />
           <ParticipantStatusRow label="Absents" icon={<X className="size-3.5 text-muted-foreground" />} participants={declined} />
-          <ParticipantStatusRow label="En attente" icon={<Clock className="size-3.5 text-amber-500" />} participants={pending} />
+          <ParticipantStatusRow
+            label="En attente"
+            icon={<Clock className="size-3.5 text-amber-500" />}
+            participants={pending}
+            remind={isCreator && !outing.cancelled_at ? (userId) => remind(outing.id, userId) : undefined}
+            isPending={isPending}
+          />
         </div>
+      )}
+      {mine?.response === "pending" && recentlyReminded(mine.reminded_at) && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+          <Bell className="size-3.5" />
+          On te relance pour cette sortie !
+        </p>
       )}
       {mine && !outing.cancelled_at && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -99,21 +123,54 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
   })}<EditOutingDialog outing={editing} onClose={() => setEditing(null)} isPending={isPending} startTransition={startTransition} /></div>;
 }
 
+const REMIND_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+
+function recentlyReminded(remindedAt: string | null) {
+  return !!remindedAt && Date.now() - new Date(remindedAt).getTime() < REMIND_COOLDOWN_MS;
+}
+
 function ParticipantStatusRow({
   label,
   icon,
   participants,
+  remind,
+  isPending,
 }: {
   label: string;
   icon: React.ReactNode;
   participants: (OutingParticipant & { profile: Profile })[];
+  remind?: (userId: string) => void;
+  isPending?: boolean;
 }) {
   if (participants.length === 0) return null;
   return (
-    <p className="flex items-start gap-1.5">
+    <div className="flex items-start gap-1.5">
       {icon}
-      <span><strong className="font-medium text-foreground">{label} ({participants.length}) :</strong> {participants.map((participant) => participant.profile.username).join(", ")}</span>
-    </p>
+      <div className="flex-1 space-y-1">
+        <span><strong className="font-medium text-foreground">{label} ({participants.length}) :</strong> {!remind && participants.map((participant) => participant.profile.username).join(", ")}</span>
+        {remind && (
+          <ul className="space-y-1">
+            {participants.map((participant) => {
+              const reminded = recentlyReminded(participant.reminded_at);
+              return (
+                <li key={participant.user_id} className="flex items-center justify-between gap-2">
+                  <span>@{participant.profile.username}</span>
+                  <button
+                    type="button"
+                    onClick={() => remind(participant.user_id)}
+                    disabled={isPending || reminded}
+                    className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                  >
+                    <Bell className="size-3" />
+                    {reminded ? "Relancé" : "Relancer"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
