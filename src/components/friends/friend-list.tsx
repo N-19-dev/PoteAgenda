@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { UserMinus, Users } from "lucide-react";
@@ -46,14 +47,18 @@ export function FriendList({
         <ListRowGroup>
           {friends.map(({ friendshipId, profile }) => (
             <ListRow key={friendshipId}>
-              <div className="flex items-center gap-2.5">
+              <Link
+                href={`/agenda?friends=${profile.id}`}
+                className="flex min-w-0 flex-1 items-center gap-2.5"
+                aria-label={`Voir la disponibilité de @${profile.username} dans l'agenda`}
+              >
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
                     {profile.username.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm">@{profile.username}</span>
-              </div>
+                <span className="truncate text-sm">@{profile.username}</span>
+              </Link>
               <Button
                 size="icon"
                 variant="ghost"
