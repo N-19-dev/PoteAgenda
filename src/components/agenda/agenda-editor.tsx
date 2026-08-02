@@ -287,6 +287,27 @@ export function AgendaEditor({
               {selectedFriends.length > 0 && " Les points colorés montrent quand tes amis sont occupés."}
             </p>
 
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm border border-border/60 bg-transparent" />
+                Libre
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: `${QUICK_LABELS[0].color}55` }} />
+                Occupé (indisponibilité)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm bg-primary/20" />
+                Sortie / invitation
+              </span>
+              {selectedFriends.length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full ring-2 ring-background" style={{ backgroundColor: colorForFriend(selectedFriends[0].id) }} />
+                  Ami occupé
+                </span>
+              )}
+            </div>
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${view}-${dateKey(anchorDate)}`}
