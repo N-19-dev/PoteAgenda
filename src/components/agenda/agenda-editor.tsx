@@ -333,11 +333,11 @@ export function AgendaEditor({
                           </div>
                         )}
                         {busyFriendIds.length > 0 && (
-                          <div className="absolute inset-x-0.5 bottom-0.5 flex justify-center gap-0.5">
+                          <div className="absolute inset-x-0.5 bottom-0.5 flex justify-center gap-1">
                             {busyFriendIds.slice(0, 4).map((id) => (
                               <span
                                 key={id}
-                                className="h-1.5 w-1.5 rounded-full"
+                                className="h-2 w-2 rounded-full ring-2 ring-background"
                                 style={{ backgroundColor: colorForFriend(id) }}
                               />
                             ))}
