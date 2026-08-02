@@ -11,7 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createOuting } from "@/lib/actions/outings";
 import type { Group, Profile } from "@/lib/supabase/types";
-import { DateTimeFields, dateTimePartsToISOString, emptyDateTimeParts, type DateTimeParts } from "./date-time-fields";
+import {
+  DURATION_PRESETS_MIN,
+  DateTimeFields,
+  addMinutesToDateTimeParts,
+  dateTimePartsToISOString,
+  emptyDateTimeParts,
+  type DateTimeParts,
+} from "./date-time-fields";
+
+function formatDurationLabel(minutes: number): string {
+  if (minutes % 60 === 0) return `${minutes / 60} h`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60}`;
+}
 
 export function CreateOutingDialog({
   friends,
@@ -75,6 +87,23 @@ export function CreateOutingDialog({
               <DateTimeFields legend="Début" idPrefix="outing-start" value={starts} onChange={setStarts} />
               <DateTimeFields legend="Fin" idPrefix="outing-end" value={ends} onChange={setEnds} />
             </div>
+            {starts.date && starts.hour && starts.minute && (
+              <div className="space-y-1.5">
+                <Label>Durée rapide</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DURATION_PRESETS_MIN.map((minutes) => (
+                    <button
+                      key={minutes}
+                      type="button"
+                      onClick={() => setEnds(addMinutesToDateTimeParts(starts, minutes))}
+                      className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent hover:text-foreground"
+                    >
+                      {formatDurationLabel(minutes)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5"><Label htmlFor="outing-location">Lieu <span className="font-normal text-muted-foreground">(facultatif)</span></Label><Input id="outing-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Canal Saint-Martin" /></div>
             <div className="space-y-1.5"><Label>Inviter un groupe <span className="font-normal text-muted-foreground">(facultatif)</span></Label><select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Aucun groupe</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div>
             {friends.length > 0 && <fieldset className="space-y-2"><legend className="text-sm font-medium">Inviter des amis</legend><div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{friends.map((friend) => <label key={friend.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"><input type="checkbox" checked={friendIds.includes(friend.id)} onChange={() => toggleFriend(friend.id)} className="accent-primary" />{friend.username}</label>)}</div></fieldset>}

@@ -20,6 +20,16 @@ export function isoStringToDateTimeParts(value: string): DateTimeParts {
   return { date: local.slice(0, 10), hour: local.slice(11, 13), minute: local.slice(14, 16) };
 }
 
+export const DURATION_PRESETS_MIN = [30, 60, 90, 120, 180];
+
+export function addMinutesToDateTimeParts(value: DateTimeParts, minutes: number): DateTimeParts {
+  const start = new Date(`${value.date}T${value.hour}:${value.minute}:00`);
+  const end = new Date(start.getTime() + minutes * 60_000);
+  const offset = end.getTimezoneOffset() * 60_000;
+  const local = new Date(end.getTime() - offset).toISOString();
+  return { date: local.slice(0, 10), hour: local.slice(11, 13), minute: local.slice(14, 16) };
+}
+
 export function DateTimeFields({
   legend,
   idPrefix,

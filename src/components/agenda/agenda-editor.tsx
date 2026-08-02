@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { Clock, MapPin, Trash2, Users } from "lucide-react";
+import { Clock, MapPin, Minus, Plus, Trash2, Users } from "lucide-react";
 import { WeekGrid, type SlotSelection } from "@/components/calendar/week-grid";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { MiniCalendar } from "@/components/calendar/mini-calendar";
@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   QUICK_LABELS,
+  SLOTS_PER_DAY,
   buildBusyGrid,
   colorForFriend,
   dateKey,
@@ -43,6 +44,14 @@ import { createOuting } from "@/lib/actions/outings";
 import type { BusyEvent, CalendarEvent, Outing, OutingResponse, Profile } from "@/lib/supabase/types";
 
 type OutingWithResponse = Outing & { myResponse: OutingResponse };
+
+function formatDuration(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (minutes === 0) return `${hours} h`;
+  if (hours === 0) return `${minutes} min`;
+  return `${hours} h ${minutes}`;
+}
 
 export function AgendaEditor({
   view,
@@ -173,6 +182,17 @@ export function AgendaEditor({
 
   function toggleInvitee(id: string) {
     setInviteeIds((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));
+  }
+
+  function adjustDuration(deltaSlots: number) {
+    setCreateSelection((selection) => {
+      if (!selection) return selection;
+      const endSlot = Math.min(
+        SLOTS_PER_DAY,
+        Math.max(selection.startSlot + 1, selection.endSlot + deltaSlots),
+      );
+      return { ...selection, endSlot };
+    });
   }
 
   function handleCreate() {
@@ -417,6 +437,37 @@ export function AgendaEditor({
           </DialogHeader>
 
           <div className="space-y-4">
+            {createSelection && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                <span className="text-xs text-muted-foreground">
+                  Durée : {formatDuration((createSelection.endSlot - createSelection.startSlot) * 30)}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => adjustDuration(-1)}
+                    disabled={createSelection.endSlot - createSelection.startSlot <= 1}
+                    aria-label="Réduire de 30 minutes"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => adjustDuration(1)}
+                    disabled={createSelection.endSlot >= SLOTS_PER_DAY}
+                    aria-label="Prolonger de 30 minutes"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
             {friends.length > 0 && (
               <div className="space-y-1.5">
                 <Label>Inviter des amis à ce créneau <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
