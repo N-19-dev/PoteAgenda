@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, MapPin, Pencil, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Clock, MapPin, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,7 +20,17 @@ export type InvitationItem = { outing: Outing; participants: (OutingParticipant 
 export function InvitationList({ invitations, currentUserId }: { invitations: InvitationItem[]; currentUserId: string }) {
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Outing | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const router = useRouter();
+
+  function toggleExpanded(outingId: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(outingId)) next.delete(outingId);
+      else next.add(outingId);
+      return next;
+    });
+  }
 
   function respond(outingId: string, response: "accepted" | "declined" | "pending") {
     startTransition(async () => {
@@ -51,11 +61,28 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
     const mine = participants.find((participant) => participant.user_id === currentUserId);
     const isCreator = outing.creator_id === currentUserId;
     const accepted = participants.filter((participant) => participant.response === "accepted");
+    const declined = participants.filter((participant) => participant.response === "declined");
     const pending = participants.filter((participant) => participant.response === "pending");
+    const isExpanded = expanded.has(outing.id);
     return <article key={outing.id} className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">{outing.title}</h2><p className="mt-1 text-sm text-muted-foreground">{format(new Date(outing.starts_at), "EEEE d MMMM · HH:mm", { locale: fr })} – {format(new Date(outing.ends_at), "HH:mm", { locale: fr })}</p>{outing.location && <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="size-3.5" />{outing.location}</p>}</div><span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{outing.cancelled_at ? "Annulée" : `${accepted.length} présent${accepted.length > 1 ? "s" : ""}`}</span></div>
       {outing.note && <p className="mt-3 text-sm">{outing.note}</p>}
-      <p className="mt-4 text-xs text-muted-foreground"><strong className="font-medium text-foreground">Présents :</strong> {accepted.map((participant) => participant.profile.username).join(", ") || "Personne"}{pending.length > 0 && ` · ${pending.length} en attente`}</p>
+      <button
+        type="button"
+        onClick={() => toggleExpanded(outing.id)}
+        className="mt-4 flex w-full items-center justify-between gap-2 text-left text-xs text-muted-foreground"
+        aria-expanded={isExpanded}
+      >
+        <span><strong className="font-medium text-foreground">Présents :</strong> {accepted.map((participant) => participant.profile.username).join(", ") || "Personne"}{pending.length > 0 && ` · ${pending.length} en attente`}</span>
+        <ChevronDown className={`size-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+      </button>
+      {isExpanded && (
+        <div className="mt-2 space-y-1.5 rounded-md border border-border/60 bg-muted/30 p-3 text-xs">
+          <ParticipantStatusRow label="Présents" icon={<Check className="size-3.5 text-primary" />} participants={accepted} />
+          <ParticipantStatusRow label="Absents" icon={<X className="size-3.5 text-muted-foreground" />} participants={declined} />
+          <ParticipantStatusRow label="En attente" icon={<Clock className="size-3.5 text-amber-500" />} participants={pending} />
+        </div>
+      )}
       {mine && !outing.cancelled_at && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button size="sm" variant={mine.response === "accepted" ? "default" : "outline"} onClick={() => respond(outing.id, "accepted")} disabled={isPending}><Check />Présent</Button>
@@ -70,6 +97,24 @@ export function InvitationList({ invitations, currentUserId }: { invitations: In
       {isCreator && !outing.cancelled_at && <div className="mt-4 flex flex-wrap gap-2"><Button className="gap-1.5" size="sm" variant="outline" disabled={isPending} onClick={() => setEditing(outing)}><Pencil className="size-3.5" />Modifier</Button><Button className="gap-1.5" size="sm" variant="destructive" disabled={isPending} onClick={() => cancel(outing.id)}><Trash2 className="size-3.5" />Annuler la sortie</Button></div>}
     </article>;
   })}<EditOutingDialog outing={editing} onClose={() => setEditing(null)} isPending={isPending} startTransition={startTransition} /></div>;
+}
+
+function ParticipantStatusRow({
+  label,
+  icon,
+  participants,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  participants: (OutingParticipant & { profile: Profile })[];
+}) {
+  if (participants.length === 0) return null;
+  return (
+    <p className="flex items-start gap-1.5">
+      {icon}
+      <span><strong className="font-medium text-foreground">{label} ({participants.length}) :</strong> {participants.map((participant) => participant.profile.username).join(", ")}</span>
+    </p>
+  );
 }
 
 function EditOutingDialog({
