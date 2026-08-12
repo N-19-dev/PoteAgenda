@@ -69,10 +69,19 @@ Ils ne voient que l'état « Occupé » / « Libre » et les intervalles associ�
 
 ## Direction visuelle actuelle
 
-La refonte en cours adopte un outil de planning sombre, précis et calme :
-fonds gris neutres, accent terracotta, Geist/Geist Mono, panneaux plans
-bordés et interactions discrètes (révélations, balayage, grille avec
-réticule). La navigation est mobile-first, avec barre basse fixe.
+Le thème clair est forcé (`forcedTheme="light"` dans
+`src/components/theme-provider.tsx`) : fond blanc, texte quasi noir, un seul
+accent indigo (`--primary`) réservé à « ton temps » (tes créneaux, la ligne
+d'heure actuelle, les actions), le temps occupé des autres restant dans un
+gris neutre dédié (`--busy-other`) — la couleur ne sort jamais de ton propre
+calendrier, ce qui traduit visuellement la promesse de confidentialité du
+produit. Typographie Geist/Geist Mono, vocabulaire de rayons homogène
+(`rounded-xl` pour les panneaux/dialogs, `rounded-lg` pour boutons/inputs/
+lignes de liste, `rounded-full` pour avatars/pastilles/badges circulaires),
+barres d'outils en `.glass-panel`. L'esprit général se rapproche d'un outil
+de calendrier natif (grille à lignes fines, en-têtes de jours sticky, rail
+d'heures, marqueur « aujourd'hui » en pastille pleine). La navigation est
+mobile-first, avec barre basse fixe.
 
 Pour toute tâche UI ou changement de direction artistique, appliquer les
 consignes de `.claude/skills/front-elite/SKILL.md` : partir d'une intention

@@ -6,8 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { Clock, MapPin, Minus, Plus, Trash2, Users } from "lucide-react";
-import { WeekGrid, type SlotSelection } from "@/components/calendar/week-grid";
+import { Check, Clock, MapPin, Minus, Plus, Trash2, Users } from "lucide-react";
+import { ROW_HEIGHT, WeekGrid, type SlotSelection } from "@/components/calendar/week-grid";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { MiniCalendar } from "@/components/calendar/mini-calendar";
 import { CalendarNav } from "@/components/calendar/calendar-nav";
@@ -26,8 +26,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   QUICK_LABELS,
+  SLOT_MINUTES,
   SLOTS_PER_DAY,
   buildBusyGrid,
+  chipForegroundColor,
   colorForFriend,
   dateKey,
   eventSlotRangeForDay,
@@ -41,10 +43,10 @@ import {
   type CalendarView,
 } from "@/lib/schedule";
 import { addCalendarEvent, deleteCalendarEvent } from "@/lib/actions/calendar-events";
-import { createOuting } from "@/lib/actions/outings";
+import { createOuting, respondToOuting, setOutingConfirmed } from "@/lib/actions/outings";
 import type { BusyEvent, CalendarEvent, Outing, OutingResponse, Profile } from "@/lib/supabase/types";
 
-type OutingWithResponse = Outing & { myResponse: OutingResponse };
+type OutingWithResponse = Outing & { myResponse: OutingResponse; isConfirmed: boolean };
 
 function formatDuration(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
@@ -160,6 +162,11 @@ export function AgendaEditor({
       && startAt.getHours() * 60 + startAt.getMinutes() === slotIndexToMinutes(slot);
   }
 
+  function eventSpanHeight(startIso: string, endIso: string) {
+    const durationMin = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60_000;
+    return Math.max(ROW_HEIGHT, (durationMin / SLOT_MINUTES) * ROW_HEIGHT - 2);
+  }
+
   function handleRangeSelect(selection: SlotSelection) {
     if (selection.endSlot - selection.startSlot === 1) {
       const existingOuting = outingByCell.get(`${selection.day}-${selection.startSlot}`);
@@ -250,9 +257,37 @@ export function AgendaEditor({
     });
   }
 
+  function handleConfirmOuting() {
+    if (!viewingOuting) return;
+    startTransition(async () => {
+      try {
+        await setOutingConfirmed(viewingOuting.id, true);
+        toast.success("Sortie confirmée");
+        setViewingOuting(null);
+        router.refresh();
+      } catch {
+        toast.error("Impossible de confirmer la sortie");
+      }
+    });
+  }
+
+  function handleAcceptOuting() {
+    if (!viewingOuting) return;
+    startTransition(async () => {
+      try {
+        await respondToOuting(viewingOuting.id, "accepted");
+        toast.success("Tu viens à cette sortie");
+        setViewingOuting(null);
+        router.refresh();
+      } catch {
+        toast.error("Impossible de valider ta réponse");
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
-      <aside className="hidden w-56 shrink-0 lg:block">
+      <aside className="hidden w-56 shrink-0 lg:block lg:border-r lg:border-border/50 lg:pr-4">
         <div className="sticky top-20 space-y-3">
           <MiniCalendar selected={anchorDate} onSelect={(d) => navigateTo(d)} />
         </div>
@@ -309,29 +344,35 @@ export function AgendaEditor({
           <div className="space-y-2">
             <p className="text-[11px] text-muted-foreground">
               Touche un créneau libre pour ajouter une indisponibilité, ou proposer une sortie à un ami sélectionné ci-dessus.
-              {selectedFriends.length > 0 && " Les points colorés montrent quand tes amis sont occupés."}
+              {selectedFriends.length > 0 && " Les hachures grises montrent quand tes amis sont occupés."}
             </p>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm border border-border/60 bg-transparent" />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-border/60 bg-transparent" />
                 Libre
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: `${QUICK_LABELS[0].color}55` }} />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: QUICK_LABELS[0].color }} />
                 Occupé (indisponibilité)
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-primary/20" />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
                 Sortie confirmée
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-amber-400/70 bg-amber-400/10" />
-                Invitation en attente
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: "#f59e0b" }} />
+                Invitation en attente de ta réponse
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--muted-foreground)" }} />
+                En attente d&apos;autres invités
               </span>
               {selectedFriends.length > 0 && (
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full ring-2 ring-background" style={{ backgroundColor: colorForFriend(selectedFriends[0].id) }} />
+                  <span className="relative h-2.5 w-2.5 shrink-0 rounded-sm bg-busy-other">
+                    <span className="absolute left-0 top-1/2 h-px w-full -rotate-45 bg-busy-other-foreground" />
+                  </span>
                   Ami occupé
                 </span>
               )}
@@ -352,7 +393,7 @@ export function AgendaEditor({
                   cellClassName={(day, slot) => {
                     const block = blockByCell.get(`${day}-${slot}`);
                     const outing = outingByCell.get(`${day}-${slot}`);
-                    return block || outing ? "" : "bg-transparent";
+                    return block || outing ? "border-t-transparent" : "bg-transparent";
                   }}
                   cellContent={(day, slot) => {
                     const block = blockByCell.get(`${day}-${slot}`);
@@ -360,61 +401,110 @@ export function AgendaEditor({
                     const busyFriendIds = friendGrid.busyMembers[day]?.[slot] ?? [];
                     return (
                       <div className="relative h-full w-full">
-                        {block && (
-                          <div
-                            className="absolute inset-0"
-                            style={{ backgroundColor: `${block.color}55` }}
-                            title={block.title}
-                          >
-                            {isSlotStart(block.start_at, day, slot) && (
-                              <span className="block truncate px-1 pt-0.5 text-[10px] font-medium text-foreground">
-                                {block.title}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {outing && (() => {
-                          const isPendingInvite = outing.myResponse === "pending" && outing.creator_id !== currentUserId;
+                        {block && isSlotStart(block.start_at, day, slot) && (() => {
+                          const height = eventSpanHeight(block.start_at, block.end_at);
+                          const showTime = height >= ROW_HEIGHT * 2 - 2;
+                          const blockColor = block.title.trim().toLowerCase() === "occupé" ? "#ef4444" : block.color;
                           return (
                             <div
-                              className={cn(
-                                "absolute inset-0",
-                                isPendingInvite
-                                  ? "border border-dashed border-amber-400/70 bg-amber-400/10"
-                                  : "bg-primary/20",
-                              )}
-                              title={outing.title}
+                              className="absolute inset-x-0 top-0 z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-0.5"
+                              style={{ height, backgroundColor: `${blockColor}1f`, borderColor: blockColor }}
+                              title={`${block.title} · ${format(new Date(block.start_at), "HH:mm")}–${format(new Date(block.end_at), "HH:mm")}`}
                             >
-                              {isSlotStart(outing.starts_at, day, slot) && (
-                                <span
-                                  className={cn(
-                                    "flex items-center gap-0.5 truncate px-1 pt-0.5 text-[10px] font-semibold",
-                                    isPendingInvite ? "text-amber-600 dark:text-amber-400" : "text-primary",
-                                  )}
-                                >
-                                  {isPendingInvite ? <Clock className="h-2.5 w-2.5 shrink-0" /> : <Users className="h-2.5 w-2.5 shrink-0" />}
-                                  <span className="truncate">{outing.title}</span>
+                              <span className="block truncate text-[10px] font-semibold leading-tight" style={{ color: blockColor }}>
+                                {block.title}
+                              </span>
+                              {showTime && (
+                                <span className="mt-0.5 flex items-center gap-0.5 truncate text-[9px] opacity-80" style={{ color: blockColor }}>
+                                  <Clock className="h-2 w-2 shrink-0" />
+                                  {format(new Date(block.start_at), "HH:mm")}–{format(new Date(block.end_at), "HH:mm")}
                                 </span>
                               )}
                             </div>
                           );
                         })()}
-                        {busyFriendIds.length > 0 && (
-                          <div className="absolute inset-x-0.5 bottom-0.5 flex justify-center gap-1">
-                            {busyFriendIds.slice(0, 4).map((id) => {
+                        {outing && isSlotStart(outing.starts_at, day, slot) && (() => {
+                          const needsMyResponse = outing.myResponse === "pending" && outing.creator_id !== currentUserId;
+                          const awaitingOthers = !needsMyResponse && !outing.isConfirmed;
+                          const height = eventSpanHeight(outing.starts_at, outing.ends_at);
+                          const showTime = height >= ROW_HEIGHT * 2 - 2;
+                          return (
+                            <div
+                              className={cn(
+                                "absolute inset-x-0 top-0 z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-0.5",
+                                needsMyResponse
+                                  ? "border-l-amber-500 bg-amber-400/10"
+                                  : awaitingOthers
+                                    ? "border-l-muted-foreground bg-muted"
+                                    : "border-l-emerald-500 bg-emerald-500/10",
+                              )}
+                              style={{ height }}
+                              title={`${outing.title} · ${format(new Date(outing.starts_at), "HH:mm")}–${format(new Date(outing.ends_at), "HH:mm")}`}
+                            >
+                              <span
+                                className={cn(
+                                  "flex items-center gap-0.5 truncate text-[10px] font-semibold leading-tight",
+                                  needsMyResponse
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : awaitingOthers
+                                      ? "text-muted-foreground"
+                                      : "text-emerald-600",
+                                )}
+                              >
+                                {needsMyResponse ? (
+                                  <Clock className="h-2.5 w-2.5 shrink-0" />
+                                ) : (
+                                  <Users className="h-2.5 w-2.5 shrink-0" />
+                                )}
+                                <span className="truncate">{outing.title}</span>
+                              </span>
+                              {showTime && (
+                                <span
+                                  className={cn(
+                                    "mt-0.5 flex items-center gap-0.5 truncate text-[9px] opacity-80",
+                                    needsMyResponse
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : awaitingOthers
+                                        ? "text-muted-foreground"
+                                        : "text-emerald-600",
+                                  )}
+                                >
+                                  <Clock className="h-2 w-2 shrink-0" />
+                                  {format(new Date(outing.starts_at), "HH:mm")}–{format(new Date(outing.ends_at), "HH:mm")}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {busyFriendIds.length > 0 && (() => {
+                          const tooltip = busyFriendIds
+                            .slice(0, 4)
+                            .map((id) => {
                               const sharedTitle = titleForBusySlot(friendsBusyEvents, id, gridDates[day], slot);
                               const username = friends.find((f) => f.id === id)?.username;
-                              return (
-                                <span
-                                  key={id}
-                                  className="h-2 w-2 rounded-full ring-2 ring-background"
-                                  style={{ backgroundColor: colorForFriend(id) }}
-                                  title={sharedTitle ? `${username ? `@${username} : ` : ""}${sharedTitle}` : username ? `@${username} occupé·e` : undefined}
-                                />
-                              );
-                            })}
-                          </div>
-                        )}
+                              return sharedTitle
+                                ? `${username ? `@${username} : ` : ""}${sharedTitle}`
+                                : username
+                                  ? `@${username} occupé·e`
+                                  : undefined;
+                            })
+                            .filter(Boolean)
+                            .join(" · ");
+                          return (
+                            <div
+                              className="absolute inset-x-0.5 inset-y-0.5 z-20 rounded-sm border border-busy-other-foreground/20 bg-busy-other/80"
+                              style={{
+                                backgroundImage:
+                                  "repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in oklch, var(--busy-other-foreground) 26%, transparent) 5px 7px)",
+                              }}
+                              title={tooltip || undefined}
+                            >
+                              <span className="sr-only">
+                                {busyFriendIds.length} ami{busyFriendIds.length > 1 ? "s" : ""} occupé{busyFriendIds.length > 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   }}
@@ -513,9 +603,13 @@ export function AgendaEditor({
                     }}
                     className={cn(
                       "rounded-full border px-3 py-1 text-xs transition-colors",
-                      title === q.label ? "border-transparent text-white" : "border-border",
+                      title === q.label ? "border-transparent" : "border-border",
                     )}
-                    style={title === q.label ? { backgroundColor: q.color } : undefined}
+                    style={
+                      title === q.label
+                        ? { backgroundColor: q.color, color: chipForegroundColor(q.color) }
+                        : undefined
+                    }
                   >
                     {q.label}
                   </button>
@@ -609,8 +703,13 @@ export function AgendaEditor({
                   <Clock className="size-3.5" />
                   Invitation en attente de ta réponse
                 </p>
+              ) : !viewingOuting.isConfirmed ? (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Users className="size-3.5" />
+                  En attente de la réponse d&apos;autres invités
+                </p>
               ) : (
-                <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
                   <Users className="size-3.5" />
                   Sortie confirmée
                 </p>
@@ -630,9 +729,18 @@ export function AgendaEditor({
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingOuting(null)}>
-              Fermer
-            </Button>
+            {viewingOuting?.myResponse === "pending" && viewingOuting.creator_id !== currentUserId && (
+              <Button disabled={isPending} onClick={handleAcceptOuting} className="gap-1.5">
+                <Check className="h-4 w-4" />
+                Valider ma présence
+              </Button>
+            )}
+            {viewingOuting && !viewingOuting.isConfirmed && viewingOuting.creator_id === currentUserId && (
+              <Button variant="outline" disabled={isPending} onClick={handleConfirmOuting} className="gap-1.5">
+                <Users className="h-4 w-4" />
+                Confirmer la sortie
+              </Button>
+            )}
             <Button onClick={() => router.push("/invitations")}>Gérer l&apos;invitation</Button>
           </DialogFooter>
         </DialogContent>

@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createOuting } from "@/lib/actions/outings";
-import type { Group, Profile } from "@/lib/supabase/types";
+import { cn } from "@/lib/utils";
+import type { Profile } from "@/lib/supabase/types";
 import {
   DURATION_PRESETS_MIN,
   DateTimeFields,
@@ -25,14 +26,10 @@ function formatDurationLabel(minutes: number): string {
   return `${Math.floor(minutes / 60)} h ${minutes % 60}`;
 }
 
-export function CreateOutingDialog({
-  friends,
-  groups,
-  defaultGroupId = "",
-}: {
+const MESSAGE_RETENTION_PRESETS = [1, 2, 3, 5, 7];
+
+export function CreateOutingDialog({ friends }: {
   friends: Profile[];
-  groups: Group[];
-  defaultGroupId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -41,7 +38,7 @@ export function CreateOutingDialog({
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [friendIds, setFriendIds] = useState<string[]>([]);
-  const [groupId, setGroupId] = useState(defaultGroupId);
+  const [messageRetentionDays, setMessageRetentionDays] = useState(2);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -50,7 +47,7 @@ export function CreateOutingDialog({
   }
 
   function reset() {
-    setTitle(""); setStarts(emptyDateTimeParts); setEnds(emptyDateTimeParts); setLocation(""); setNote(""); setFriendIds([]); setGroupId(defaultGroupId);
+    setTitle(""); setStarts(emptyDateTimeParts); setEnds(emptyDateTimeParts); setLocation(""); setNote(""); setFriendIds([]); setMessageRetentionDays(2);
   }
 
   function submit(event: React.FormEvent) {
@@ -64,7 +61,7 @@ export function CreateOutingDialog({
           location,
           note,
           friendIds,
-          groupId: groupId || undefined,
+          messageRetentionDays,
         });
         toast.success("Invitation envoyée");
         setOpen(false); reset(); router.refresh();
@@ -105,11 +102,32 @@ export function CreateOutingDialog({
               </div>
             )}
             <div className="space-y-1.5"><Label htmlFor="outing-location">Lieu <span className="font-normal text-muted-foreground">(facultatif)</span></Label><Input id="outing-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Canal Saint-Martin" /></div>
-            <div className="space-y-1.5"><Label>Inviter un groupe <span className="font-normal text-muted-foreground">(facultatif)</span></Label><select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Aucun groupe</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div>
             {friends.length > 0 && <fieldset className="space-y-2"><legend className="text-sm font-medium">Inviter des amis</legend><div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{friends.map((friend) => <label key={friend.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"><input type="checkbox" checked={friendIds.includes(friend.id)} onChange={() => toggleFriend(friend.id)} className="accent-primary" />{friend.username}</label>)}</div></fieldset>}
             <div className="space-y-1.5"><Label htmlFor="outing-note">Note <span className="font-normal text-muted-foreground">(facultatif)</span></Label><Textarea id="outing-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="On réserve une table ?" /></div>
+            <div className="space-y-1.5">
+              <Label>Discussion ouverte jusqu&apos;à</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {MESSAGE_RETENTION_PRESETS.map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setMessageRetentionDays(days)}
+                    aria-pressed={messageRetentionDays === days}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs transition-colors",
+                      messageRetentionDays === days
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    {days} jour{days > 1 ? "s" : ""} après
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Les invités pourront échanger sur cette sortie jusqu&apos;à {messageRetentionDays} jour{messageRetentionDays > 1 ? "s" : ""} après sa fin.</p>
+            </div>
           </div>
-          <DialogFooter><Button type="submit" disabled={isPending || !title.trim() || !starts.date || !starts.hour || !starts.minute || !ends.date || !ends.hour || !ends.minute || (friendIds.length === 0 && !groupId)}>{isPending ? "Envoi…" : "Envoyer l'invitation"}</Button></DialogFooter>
+          <DialogFooter><Button type="submit" disabled={isPending || !title.trim() || !starts.date || !starts.hour || !starts.minute || !ends.date || !ends.hour || !ends.minute || friendIds.length === 0}>{isPending ? "Envoi…" : "Envoyer l'invitation"}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

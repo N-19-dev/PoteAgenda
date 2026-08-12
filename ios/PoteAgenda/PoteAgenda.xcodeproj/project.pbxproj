@@ -1,0 +1,388 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		101000000000000000000001 /* PoteAgendaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000001 /* PoteAgendaApp.swift */; };
+		101000000000000000000002 /* Models/AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000002 /* Models/AppModels.swift */; };
+		101000000000000000000003 /* Services/DateHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000003 /* Services/DateHelpers.swift */; };
+		101000000000000000000004 /* Services/SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000004 /* Services/SupabaseConfig.swift */; };
+		101000000000000000000005 /* Services/SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000005 /* Services/SupabaseService.swift */; };
+		101000000000000000000017 /* Services/EventKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000022 /* Services/EventKitService.swift */; };
+		101000000000000000000006 /* ViewModels/SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000006 /* ViewModels/SessionStore.swift */; };
+		101000000000000000000007 /* ViewModels/AppDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000007 /* ViewModels/AppDataStore.swift */; };
+		101000000000000000000008 /* Views/RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000008 /* Views/RootView.swift */; };
+		101000000000000000000009 /* Views/AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000009 /* Views/AuthView.swift */; };
+		101000000000000000000010 /* Views/MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000010 /* Views/MainTabView.swift */; };
+		101000000000000000000011 /* Views/SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000011 /* Views/SharedViews.swift */; };
+		101000000000000000000012 /* Views/AgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000012 /* Views/AgendaView.swift */; };
+		101000000000000000000013 /* Views/FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000013 /* Views/FriendsView.swift */; };
+		101000000000000000000014 /* Views/GroupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000014 /* Views/GroupsView.swift */; };
+		101000000000000000000015 /* Views/InvitationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000015 /* Views/InvitationsView.swift */; };
+		101000000000000000000016 /* Views/SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000016 /* Views/SettingsView.swift */; };
+		101000000000000000000019 /* Supabase.plist in Resources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000021 /* Supabase.plist */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		102000000000000000000001 /* PoteAgendaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoteAgendaApp.swift; sourceTree = "<group>"; };
+		102000000000000000000002 /* Models/AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AppModels.swift; sourceTree = "<group>"; };
+		102000000000000000000003 /* Services/DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/DateHelpers.swift; sourceTree = "<group>"; };
+		102000000000000000000004 /* Services/SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/SupabaseConfig.swift; sourceTree = "<group>"; };
+		102000000000000000000005 /* Services/SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/SupabaseService.swift; sourceTree = "<group>"; };
+		102000000000000000000022 /* Services/EventKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/EventKitService.swift; sourceTree = "<group>"; };
+		102000000000000000000006 /* ViewModels/SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/SessionStore.swift; sourceTree = "<group>"; };
+		102000000000000000000007 /* ViewModels/AppDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/AppDataStore.swift; sourceTree = "<group>"; };
+		102000000000000000000008 /* Views/RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RootView.swift; sourceTree = "<group>"; };
+		102000000000000000000009 /* Views/AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AuthView.swift; sourceTree = "<group>"; };
+		102000000000000000000010 /* Views/MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
+		102000000000000000000011 /* Views/SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SharedViews.swift; sourceTree = "<group>"; };
+		102000000000000000000012 /* Views/AgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AgendaView.swift; sourceTree = "<group>"; };
+		102000000000000000000013 /* Views/FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/FriendsView.swift; sourceTree = "<group>"; };
+		102000000000000000000014 /* Views/GroupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/GroupsView.swift; sourceTree = "<group>"; };
+		102000000000000000000015 /* Views/InvitationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/InvitationsView.swift; sourceTree = "<group>"; };
+		102000000000000000000016 /* Views/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
+		102000000000000000000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		102000000000000000000018 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources; sourceTree = "<group>"; };
+		102000000000000000000019 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		102000000000000000000020 /* PoteAgenda.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PoteAgenda.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		102000000000000000000021 /* Supabase.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Resources/Supabase.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		103000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		104000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				104000000000000000000002 /* PoteAgenda */,
+				104000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		104000000000000000000002 /* PoteAgenda */ = {
+			isa = PBXGroup;
+			children = (
+				102000000000000000000001 /* PoteAgendaApp.swift */,
+				102000000000000000000002 /* Models/AppModels.swift */,
+				102000000000000000000003 /* Services/DateHelpers.swift */,
+				102000000000000000000004 /* Services/SupabaseConfig.swift */,
+				102000000000000000000005 /* Services/SupabaseService.swift */,
+				102000000000000000000022 /* Services/EventKitService.swift */,
+				102000000000000000000006 /* ViewModels/SessionStore.swift */,
+				102000000000000000000007 /* ViewModels/AppDataStore.swift */,
+				102000000000000000000008 /* Views/RootView.swift */,
+				102000000000000000000009 /* Views/AuthView.swift */,
+				102000000000000000000010 /* Views/MainTabView.swift */,
+				102000000000000000000011 /* Views/SharedViews.swift */,
+				102000000000000000000012 /* Views/AgendaView.swift */,
+				102000000000000000000013 /* Views/FriendsView.swift */,
+				102000000000000000000014 /* Views/GroupsView.swift */,
+				102000000000000000000015 /* Views/InvitationsView.swift */,
+				102000000000000000000016 /* Views/SettingsView.swift */,
+				102000000000000000000017 /* Assets.xcassets */,
+				102000000000000000000018 /* Resources */,
+				102000000000000000000021 /* Supabase.plist */,
+				102000000000000000000019 /* Info.plist */,
+			);
+			path = PoteAgenda;
+			sourceTree = "<group>";
+		};
+		104000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				102000000000000000000020 /* PoteAgenda.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		105000000000000000000001 /* PoteAgenda */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 109000000000000000000002 /* Build configuration list for PBXNativeTarget "PoteAgenda" */;
+			buildPhases = (
+				107000000000000000000001 /* Sources */,
+				103000000000000000000001 /* Frameworks */,
+				108000000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PoteAgenda;
+			productName = PoteAgenda;
+			productReference = 102000000000000000000020 /* PoteAgenda.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		106000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					105000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 109000000000000000000001 /* Build configuration list for PBXProject "PoteAgenda" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = fr;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				fr,
+				en,
+				Base,
+			);
+			mainGroup = 104000000000000000000001;
+			productRefGroup = 104000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				105000000000000000000001 /* PoteAgenda */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		108000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				101000000000000000000019 /* Supabase.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		107000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				101000000000000000000001 /* PoteAgendaApp.swift in Sources */,
+				101000000000000000000002 /* Models/AppModels.swift in Sources */,
+				101000000000000000000003 /* Services/DateHelpers.swift in Sources */,
+				101000000000000000000004 /* Services/SupabaseConfig.swift in Sources */,
+				101000000000000000000005 /* Services/SupabaseService.swift in Sources */,
+				101000000000000000000017 /* Services/EventKitService.swift in Sources */,
+				101000000000000000000006 /* ViewModels/SessionStore.swift in Sources */,
+				101000000000000000000007 /* ViewModels/AppDataStore.swift in Sources */,
+				101000000000000000000008 /* Views/RootView.swift in Sources */,
+				101000000000000000000009 /* Views/AuthView.swift in Sources */,
+				101000000000000000000010 /* Views/MainTabView.swift in Sources */,
+				101000000000000000000011 /* Views/SharedViews.swift in Sources */,
+				101000000000000000000012 /* Views/AgendaView.swift in Sources */,
+				101000000000000000000013 /* Views/FriendsView.swift in Sources */,
+				101000000000000000000014 /* Views/GroupsView.swift in Sources */,
+				101000000000000000000015 /* Views/InvitationsView.swift in Sources */,
+				101000000000000000000016 /* Views/SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		110000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		110000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		110000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = RDP9296NP7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PoteAgenda/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poteagenda.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		110000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDP9296NP7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PoteAgenda/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.poteagenda.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		109000000000000000000001 /* Build configuration list for PBXProject "PoteAgenda" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				110000000000000000000001 /* Debug */,
+				110000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		109000000000000000000002 /* Build configuration list for PBXNativeTarget "PoteAgenda" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				110000000000000000000003 /* Debug */,
+				110000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 106000000000000000000001 /* Project object */;
+}

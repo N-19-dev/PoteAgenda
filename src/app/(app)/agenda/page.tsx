@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { AgendaEditor } from "@/components/agenda/agenda-editor";
-import { parseDateParam, rangeForView, type CalendarView } from "@/lib/schedule";
+import { dateKey, parseDateParam, rangeForView, rangeLabel, type CalendarView } from "@/lib/schedule";
 import type { BusyEvent, CalendarEvent, FriendshipStatus, OutingResponse, Profile } from "@/lib/supabase/types";
 
 interface PageProps {
@@ -59,8 +59,8 @@ export default async function AgendaPage({ searchParams }: PageProps) {
   if (selectedFriendIds.length > 0) {
     const { data } = await supabase.rpc("get_friends_busy_events", {
       p_friend_ids: selectedFriendIds,
-      p_range_start: rangeStart.toISOString().slice(0, 10),
-      p_range_end: rangeEnd.toISOString().slice(0, 10),
+      p_range_start: dateKey(rangeStart),
+      p_range_end: dateKey(rangeEnd),
     });
     friendsBusyEvents = (data ?? []) as BusyEvent[];
   }
@@ -80,16 +80,27 @@ export default async function AgendaPage({ searchParams }: PageProps) {
   const myResponseByOuting = new Map(
     (participationRows ?? []).map((row) => [row.outing_id, row.response as OutingResponse]),
   );
+
+  const { data: allParticipantRows } = outingIds.length > 0
+    ? await supabase.from("outing_participants").select("outing_id, response").in("outing_id", outingIds)
+    : { data: [] };
+  const outingIdsAwaitingResponse = new Set(
+    (allParticipantRows ?? []).filter((row) => row.response === "pending").map((row) => row.outing_id),
+  );
+
   const outingsWithResponse = (outings ?? []).map((outing) => ({
     ...outing,
     myResponse: myResponseByOuting.get(outing.id) ?? "accepted",
+    isConfirmed: outing.confirmed_at !== null || !outingIdsAwaitingResponse.has(outing.id),
   }));
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div>
-        <p className="text-sm font-medium text-primary">Mon planning</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">Agenda</h1>
+        <p className="text-sm font-medium text-primary">Agenda</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight capitalize sm:text-4xl">
+          {rangeLabel(view, date)}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">Touche un créneau libre pour ajouter une indisponibilité ou proposer une sortie à un ami.</p>
       </div>
       <AgendaEditor

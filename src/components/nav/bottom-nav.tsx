@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, Mail, Users, UsersRound } from "lucide-react";
+import { CalendarClock, Mail, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/agenda", label: "Mon agenda", icon: CalendarClock },
   { href: "/invitations", label: "Invitations", icon: Mail },
-  { href: "/groups", label: "Groupes", icon: UsersRound },
   { href: "/friends", label: "Amis", icon: Users },
 ];
 

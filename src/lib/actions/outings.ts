@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { OutingResponse } from "@/lib/supabase/types";
+import type { OutingMessage, OutingResponse, Profile } from "@/lib/supabase/types";
 
 type CreateOutingInput = {
   title: string;
@@ -12,6 +12,7 @@ type CreateOutingInput = {
   note?: string;
   friendIds: string[];
   groupId?: string;
+  messageRetentionDays?: number;
 };
 
 type UpdateOutingInput = {
@@ -72,12 +73,15 @@ export async function createOuting(input: CreateOutingInput) {
     );
   }
 
+  const messageRetentionDays = Math.min(7, Math.max(1, Math.round(input.messageRetentionDays ?? 2)));
+
   const { data: outing, error } = await supabase
     .from("outings")
     .insert({
       creator_id: user.id, group_id: input.groupId || null, title,
       starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(),
       location: input.location?.trim() || null, note: input.note?.trim() || null,
+      message_retention_days: messageRetentionDays,
     })
     .select("id")
     .single();
@@ -154,6 +158,20 @@ export async function remindOutingParticipant(outingId: string, userId: string) 
   revalidatePath("/invitations");
 }
 
+export async function setOutingConfirmed(outingId: string, confirmed: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non authentifié");
+  const { error } = await supabase.from("outings")
+    .update({ confirmed_at: confirmed ? new Date().toISOString() : null })
+    .eq("id", outingId)
+    .eq("creator_id", user.id);
+  if (error) throw error;
+  revalidatePath("/agenda");
+  revalidatePath("/invitations");
+  revalidatePath("/groups");
+}
+
 export async function cancelOuting(outingId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -163,4 +181,35 @@ export async function cancelOuting(outingId: string) {
   if (error) throw error;
   revalidatePath("/agenda");
   revalidatePath("/invitations");
+}
+
+export type OutingMessageWithProfile = OutingMessage & { profile: Pick<Profile, "username" | "avatar_url"> };
+
+export async function getOutingMessages(outingId: string): Promise<OutingMessageWithProfile[]> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non authentifié");
+  const { data, error } = await supabase
+    .from("outing_messages")
+    .select("*, profile:profiles(username, avatar_url)")
+    .eq("outing_id", outingId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return ((data ?? []) as OutingMessageWithProfile[]).reverse();
+}
+
+export async function sendOutingMessage(outingId: string, body: string, mentionedUserIds: string[] = []) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non authentifié");
+  const trimmed = body.trim();
+  if (!trimmed || trimmed.length > 2000) throw new Error("Message invalide");
+  const { error } = await supabase.from("outing_messages").insert({
+    outing_id: outingId,
+    sender_id: user.id,
+    body: trimmed,
+    mentioned_user_ids: [...new Set(mentionedUserIds)],
+  });
+  if (error) throw error;
 }

@@ -27,8 +27,9 @@ export default async function CalendarsPage() {
       </Link>
 
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Mes calendriers</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm font-medium text-primary">Calendriers externes</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Mes calendriers</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Importe un calendrier externe (.ics) pour remplir automatiquement tes indisponibilités.
         </p>
       </div>

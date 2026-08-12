@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { UserMinus, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { Switch } from "@/components/ui/switch";
 import { removeFriend, setCalendarSharePreference } from "@/lib/actions/friends";
@@ -52,12 +53,11 @@ export function FriendList({
         Amis ({friends.length})
       </h2>
       {friends.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card py-10 text-center">
-          <Users className="h-7 w-7 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Ajoute des amis par pseudo ou email pour créer des groupes.
-          </p>
-        </div>
+        <EmptyState
+          className="gap-2 py-10"
+          icon={<Users className="h-7 w-7 text-muted-foreground" />}
+          message="Ajoute des amis par pseudo ou email pour voir leurs disponibilités et les inviter."
+        />
       ) : (
         <ListRowGroup>
           {friends.map(({ friendshipId, profile }) => (

@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+ios/PoteAgenda/PoteAgenda/Resources/Supabase.plist
+xcuserdata/
+*.xcuserstate
 
 # vercel
 .vercel

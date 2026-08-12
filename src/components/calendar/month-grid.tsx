@@ -44,8 +44,8 @@ export function MonthGrid({ monthStart, events, outings, onSelectDay }: MonthGri
   }, [days, events, outings]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="grid grid-cols-7 border-b border-border">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-border/40 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+      <div className="grid grid-cols-7 border-b border-border/60">
         {DAY_LABELS_SHORT.map((label) => (
           <div key={label} className="py-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             {label}
@@ -63,7 +63,7 @@ export function MonthGrid({ monthStart, events, outings, onSelectDay }: MonthGri
               type="button"
               onClick={() => onSelectDay(day)}
               className={cn(
-                "flex min-h-16 flex-col items-stretch gap-0.5 border-b border-l border-border/70 p-1 text-left transition-colors first:border-l-0 hover:bg-accent [&:nth-child(7n+1)]:border-l-0",
+                "flex min-h-16 min-w-0 flex-col items-stretch gap-0.5 border-b border-l border-border/30 p-1 text-left transition-colors first:border-l-0 hover:bg-accent [&:nth-child(7n+1)]:border-l-0",
                 !inMonth && "bg-muted/30",
               )}
             >
@@ -76,12 +76,16 @@ export function MonthGrid({ monthStart, events, outings, onSelectDay }: MonthGri
               >
                 {format(day, "d")}
               </span>
-              <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
                 {items.slice(0, MAX_VISIBLE).map((item) => (
                   <span
                     key={item.key}
-                    className="truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight text-white"
-                    style={{ backgroundColor: item.color }}
+                    className="min-w-0 truncate rounded border-l-2 px-1 py-0.5 text-[10px] font-medium leading-tight"
+                    style={{
+                      backgroundColor: `color-mix(in oklch, ${item.color} 12%, transparent)`,
+                      borderColor: item.color,
+                      color: item.color,
+                    }}
                   >
                     {item.title}
                   </span>

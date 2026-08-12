@@ -10,6 +10,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { BusyEvent } from "@/lib/supabase/types";
 
 export const DAY_LABELS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"] as const;
@@ -88,6 +89,18 @@ export function parseWeekParam(param?: string): Date {
 }
 
 export type CalendarView = "day" | "week" | "month";
+
+/** Libellé de la période affichée (ex. « Août 2026 », « 27 juil. – 2 août »), utilisé comme titre de page. */
+export function rangeLabel(view: CalendarView, date: Date): string {
+  if (view === "day") return format(date, "EEEE d MMMM", { locale: fr });
+  if (view === "month") return format(date, "MMMM yyyy", { locale: fr });
+  const weekStart = getWeekStart(date);
+  const weekEnd = getWeekDates(weekStart)[6];
+  const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
+  return sameMonth
+    ? `${format(weekStart, "d", { locale: fr })} – ${format(weekEnd, "d MMMM", { locale: fr })}`
+    : `${format(weekStart, "d MMM", { locale: fr })} – ${format(weekEnd, "d MMM", { locale: fr })}`;
+}
 
 /** Parse un paramètre `?date=yyyy-MM-dd` quelconque ; retombe sur aujourd'hui si absent/invalide. */
 export function parseDateParam(param?: string): Date {
@@ -224,12 +237,23 @@ export function slotRangeToTimes(date: Date, startSlot: number, endSlot: number)
 }
 
 export const QUICK_LABELS = [
+  { label: "Occupé", color: "#ef4444" },
   { label: "Travail", color: "#6366f1" },
   { label: "Sport", color: "#f97316" },
   { label: "Cours", color: "#eab308" },
   { label: "Dodo", color: "#64748b" },
   { label: "Autre", color: "#ec4899" },
 ] as const;
+
+/** Couleur de texte lisible (quasi noir/blanc) sur une chip d'une couleur hex arbitraire (amie ou catégorie). */
+export function chipForegroundColor(input: string): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(input);
+  if (!match) return "#ffffff";
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(match[1].slice(i, i + 2), 16) / 255);
+  const [rl, gl, bl] = [r, g, b].map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const luminance = 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+  return luminance > 0.45 ? "#0a0a0a" : "#ffffff";
+}
 
 export type SlotStatus = "free-all" | "busy-partial" | "busy-all";
 

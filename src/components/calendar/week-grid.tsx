@@ -28,7 +28,7 @@ interface WeekGridProps {
   interactive?: boolean;
 }
 
-const ROW_HEIGHT = 22;
+export const ROW_HEIGHT = 22;
 
 function useNowMinutes() {
   const [minutes, setMinutes] = useState<number | null>(null);
@@ -82,6 +82,20 @@ export function WeekGrid({
     slot >= Math.min(dragStart.slot, dragEnd) &&
     slot <= Math.max(dragStart.slot, dragEnd);
 
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent) => {
+      if (!interactive || !dragging.current || !dragStart) return;
+      const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const cell = target?.closest<HTMLElement>("[data-day][data-slot]");
+      if (!cell) return;
+      const day = Number(cell.dataset.day);
+      const slot = Number(cell.dataset.slot);
+      if (day !== dragStart.day) return;
+      setDragEnd(slot);
+    },
+    [dragStart, interactive],
+  );
+
   const todayIndex = weekDates.findIndex((d) => isToday(d));
   const nowLine =
     todayIndex >= 0 && nowMinutes !== null && (nightOpen || nowMinutes >= slotIndexToMinutes(NIGHT_SLOT_COUNT))
@@ -90,14 +104,15 @@ export function WeekGrid({
 
   return (
     <div
-      className="overflow-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+      className="overflow-auto rounded-xl border border-border/40 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+      onPointerMove={handlePointerMove}
       onPointerUp={finishDrag}
       onPointerLeave={finishDrag}
     >
       <div
         className="relative grid select-none"
         style={{
-          gridTemplateColumns: `40px repeat(${weekDates.length}, minmax(64px, 1fr))`,
+          gridTemplateColumns: `48px repeat(${weekDates.length}, minmax(64px, 1fr))`,
           minWidth: weekDates.length > 1 ? "560px" : undefined,
         }}
       >
@@ -106,7 +121,7 @@ export function WeekGrid({
           <div
             key={date.toISOString()}
             className={cn(
-              "sticky top-0 z-10 border-b border-l border-border bg-card py-1.5 text-center",
+              "sticky top-0 z-10 border-b border-l border-border/60 bg-card py-1.5 text-center",
             )}
           >
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -140,21 +155,39 @@ export function WeekGrid({
           )}
         </button>
 
+        <div
+          className="sticky left-0 z-10 bg-card"
+          style={{ gridColumn: 1, gridRow: `3 / span ${visibleSlots.length}` }}
+        >
+          {visibleSlots.map((slot) => {
+            const minutes = slotIndexToMinutes(slot);
+            const hour = minutes % 60 === 0;
+            return (
+              <div
+                key={slot}
+                className={cn(
+                  "border-t pr-2 text-right font-mono text-[11px] text-muted-foreground",
+                  hour ? "border-border/50" : "border-transparent",
+                )}
+                style={{ height: ROW_HEIGHT }}
+              >
+                {hour && <span className="relative -top-2 block">{minutesToLabel(minutes)}</span>}
+              </div>
+            );
+          })}
+        </div>
+
         {visibleSlots.map((slot) => {
           const minutes = slotIndexToMinutes(slot);
           const hour = minutes % 60 === 0;
           return (
             <Fragment key={slot}>
-              <div
-                className="sticky left-0 z-10 border-t border-border/70 bg-card pr-1.5 text-right font-mono text-[9px] text-muted-foreground"
-                style={{ height: ROW_HEIGHT }}
-              >
-                {hour && <span className="relative -top-1.5">{minutesToLabel(minutes)}</span>}
-              </div>
               {weekDates.map((_, day) => (
                 <div
                   key={`${day}-${slot}`}
-                  style={{ height: ROW_HEIGHT }}
+                  data-day={day}
+                  data-slot={slot}
+                  style={{ height: ROW_HEIGHT, touchAction: interactive ? "none" : undefined }}
                   onPointerDown={() => {
                     if (interactive) {
                       dragging.current = true;
@@ -162,16 +195,13 @@ export function WeekGrid({
                       setDragEnd(slot);
                     }
                   }}
-                  onPointerEnter={() => {
-                    if (interactive && dragging.current && dragStart?.day === day) setDragEnd(slot);
-                  }}
                   onClick={() => onCellTap?.(day, slot)}
                   className={cn(
-                    "relative border-l border-t border-border/50",
-                    hour && "border-t-border/80",
+                    "relative border-l border-t border-border/25",
+                    hour ? "border-t-border/50" : "border-t-transparent",
                     interactive && "cursor-pointer hover:bg-accent",
-                    selected(day, slot) && "bg-accent",
                     cellClassName(day, slot),
+                    selected(day, slot) && "bg-accent",
                   )}
                 >
                   {cellContent?.(day, slot)}

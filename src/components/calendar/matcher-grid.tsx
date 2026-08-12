@@ -44,7 +44,7 @@ export function MatcherGrid({ weekStart, groupId, members, busyEvents }: Matcher
   const cellClassName = (day: number, slot: number) => {
     const s = status(day, slot);
     if (s === "free-all") return "bg-emerald-500/20 hover:bg-emerald-500/30";
-    if (s === "busy-all") return "bg-busy-other hover:bg-busy-other";
+    if (s === "busy-all") return "bg-red-500/10 hover:bg-red-500/15";
     return "bg-amber-400/15 hover:bg-amber-400/25";
   };
 
@@ -110,7 +110,9 @@ export function MatcherGrid({ weekStart, groupId, members, busyEvents }: Matcher
           Certains sont occupés
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-busy-other" />
+          <span className="relative h-3 w-3 rounded-sm bg-red-500/15">
+            <span className="absolute left-0 top-1/2 h-px w-full -rotate-45 bg-red-500" />
+          </span>
           Personne n&apos;est libre
         </span>
         <span className="text-[11px]">Touche un créneau pour voir qui est dispo</span>
@@ -119,6 +121,11 @@ export function MatcherGrid({ weekStart, groupId, members, busyEvents }: Matcher
       <WeekGrid
         weekDates={weekDates}
         cellClassName={cellClassName}
+        cellContent={(day, slot) =>
+          status(day, slot) === "busy-all" ? (
+            <span className="pointer-events-none absolute left-0 top-1/2 h-px w-full -rotate-12 bg-red-500/80" />
+          ) : null
+        }
         onCellTap={(day, slot) => setSelected({ day, slot })}
       />
 
@@ -145,14 +152,14 @@ export function MatcherGrid({ weekStart, groupId, members, busyEvents }: Matcher
                         {m.username.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className={cn("flex-1 truncate", m.busy && "text-muted-foreground")}>
+                    <span className={cn("flex-1 truncate", m.busy && "text-red-600 line-through decoration-red-600")}>
                       {m.username}
                       {m.busy && m.sharedTitle && (
-                        <span className="ml-1.5 truncate text-xs text-foreground/70">· {m.sharedTitle}</span>
+                        <span className="ml-1.5 truncate text-xs text-red-600/80">· {m.sharedTitle}</span>
                       )}
                     </span>
                     {m.busy ? (
-                      <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-red-600">
                         <X className="h-3.5 w-3.5" /> Occupé
                       </span>
                     ) : (

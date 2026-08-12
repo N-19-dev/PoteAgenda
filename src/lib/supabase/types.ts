@@ -93,6 +93,8 @@ export interface Outing {
   location: string | null;
   note: string | null;
   cancelled_at: string | null;
+  confirmed_at: string | null;
+  message_retention_days: number;
   created_at: string;
   updated_at: string;
 }
@@ -103,5 +105,14 @@ export interface OutingParticipant {
   response: OutingResponse;
   responded_at: string | null;
   reminded_at: string | null;
+  created_at: string;
+}
+
+export interface OutingMessage {
+  id: string;
+  outing_id: string;
+  sender_id: string;
+  body: string;
+  mentioned_user_ids: string[];
   created_at: string;
 }
