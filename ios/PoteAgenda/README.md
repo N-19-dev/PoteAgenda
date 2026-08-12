@@ -1,7 +1,7 @@
 # PoteAgenda iOS
 
-Application iOS SwiftUI native pour PoteAgenda. Elle reutilise le meme projet
-Supabase que le site web, sans modifier le code Next.js.
+Application iOS SwiftUI native pour PoteAgenda. Elle utilise le backend
+Supabase du projet (schema, RLS et RPC dans `supabase/migrations/`).
 
 ## Configuration
 

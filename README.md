@@ -4,11 +4,14 @@ Trouve un créneau libre avec tes potes, sans exposer ton emploi du temps. Les
 autres membres d'un groupe ne voient jamais le titre d'un événement — juste
 « Occupé » ou « Libre ».
 
+Ce dépôt contient l'application iOS native (SwiftUI) et le backend Supabase
+qu'elle utilise.
+
 ## Stack
 
-- **Next.js 16** (App Router, TypeScript)
-- **Tailwind CSS v4** + **shadcn/ui** (Base UI) + **Lucide React**
+- **SwiftUI** (iOS natif) — voir `ios/PoteAgenda/`
 - **Supabase** (Auth + Postgres + RLS + RPC)
+- **EventKit** pour l'import des calendriers natifs de l'appareil
 
 ## Mise en route
 
@@ -16,25 +19,13 @@ autres membres d'un groupe ne voient jamais le titre d'un événement — juste
 
 1. Crée un projet sur [supabase.com](https://supabase.com).
 2. Dans **SQL Editor**, exécute dans l'ordre le contenu de chaque fichier de
-   `supabase/migrations/` (`0001_init.sql`, `0002_...sql`, `0003_...sql`).
+   `supabase/migrations/`.
 3. Récupère l'URL et la clé `publishable` du projet (**Project Settings → API Keys**).
 
-### 2. Variables d'environnement
+### 2. Lancer l'app iOS
 
-```bash
-cp .env.local.example .env.local
-```
-
-Renseigne `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-
-### 3. Installer et lancer
-
-```bash
-npm install
-npm run dev
-```
-
-Ouvre [http://localhost:3000](http://localhost:3000).
+Voir `ios/PoteAgenda/README.md` pour la configuration de `Supabase.plist` et
+le lancement dans Xcode.
 
 ## Modèle de données & confidentialité
 
@@ -43,66 +34,29 @@ Ouvre [http://localhost:3000](http://localhost:3000).
 - `friendships` — relations d'amitié avec flux demande/acceptation.
 - `groups` / `group_members` — groupes et leurs membres.
 - `calendar_events` — indisponibilités **datées** (titre, `start_at`/`end_at`
-  en `timestamptz`, couleur), saisies à la main ou importées d'un calendrier
-  externe. **Verrouillée par RLS : seul le propriétaire peut lire ses
-  lignes.**
-- `calendar_sources` — calendriers externes connectés (fichier `.ics` importé
-  une fois, ou URL `.ics` resynchronisable à la demande). L'URL est aussi
-  privée que le titre d'un événement (même garantie RLS).
+  en `timestamptz`, couleur), saisies à la main ou importées. **Verrouillée
+  par RLS : seul le propriétaire peut lire ses lignes.**
+- `calendar_sources` — calendriers externes connectés. Aussi privés que le
+  titre d'un événement (même garantie RLS).
 
-Le partage de disponibilité entre membres d'un groupe passe uniquement par la
-fonction RPC `get_group_busy_events(group_id, range_start, range_end)`
-(`SECURITY DEFINER`), qui ne renvoie que `user_id`, `start_at`, `end_at` —
-**jamais le titre ni la couleur**. C'est ce qui garantit que tes amis voient
-« Occupé » et rien d'autre.
-
-### Import de calendrier (.ics)
-
-Depuis `/agenda/calendars`, on peut connecter un calendrier externe :
-
-- **Fichier `.ics`** : import ponctuel (pas de resynchronisation possible,
-  aucun fichier n'est conservé côté serveur).
-- **URL `.ics`** (Google/Outlook/iCloud "adresse secrète") : récupérée
-  côté serveur (route handler, jamais exposée au client), resynchronisable
-  manuellement via le bouton dédié.
-
-Le parsing utilise `node-ical` et expanse les événements récurrents (`RRULE`)
-en occurrences concrètes sur un horizon glissant de 180 jours. Une
-resynchronisation remplace transactionnellement (delete + insert, RPC
-`resync_calendar_source`) toutes les occurrences importées d'une source.
+Le partage de disponibilité entre membres d'un groupe passe uniquement par les
+fonctions RPC `SECURITY DEFINER` `get_group_busy_events(group_id, range_start, range_end)`
+et `get_friends_busy_events(friend_ids, range_start, range_end)`, qui ne
+renvoient que `user_id`, `start_at`, `end_at` — **jamais le titre ni la
+couleur**. C'est ce qui garantit que tes amis voient « Occupé » et rien
+d'autre.
 
 ## Structure
 
 ```
-src/
-  app/
-    login/, signup/, auth/callback/   pages publiques
-    (app)/                            layout authentifié + nav mobile
-      groups/                         liste, vue Matcher, réglages
-      agenda/                         agenda perso (semaine datée éditable)
-        calendars/                    calendriers externes connectés (.ics)
-      friends/                        amis, demandes, recherche
-    api/calendar-sources/             route handlers d'import/resync .ics
-  components/
-    calendar/                         WeekGrid (grille datée) + WeekNav + MatcherGrid
-    agenda/, friends/, groups/, nav/  UI par domaine
-    ui/                               shadcn/ui
-  lib/
-    supabase/                         clients browser/server/middleware + types
-    actions/                          Server Actions (groupes, amis, agenda, calendriers)
-    schedule.ts                       constantes & calculs de créneaux (semaine datée)
-    ics.ts                            parsing .ics (node-ical) + fetch serveur d'URL
+ios/
+  PoteAgenda/                Projet Xcode (SwiftUI)
+    PoteAgenda/
+      Views/                 Écrans (agenda, groupes, amis, invitations…)
+      ViewModels/             SessionStore, AppDataStore
+      Services/               SupabaseService, EventKitService, DateHelpers
+      Models/                 Modèles de données
+      Resources/              Supabase.plist (config, non commité)
 supabase/
-  migrations/                         schéma complet + RLS + RPC (0001, 0002, 0003)
+  migrations/                 schéma complet + RLS + RPC
 ```
-
-## Notes techniques
-
-- Les types Supabase (`src/lib/supabase/types.ts`) sont écrits à la main et
-  volontairement **pas** branchés en generic sur les clients (`createClient`)
-  — la version actuelle de `@supabase/supabase-js` attend la métadonnée de
-  relations issue de `supabase gen types typescript --linked`, qu'on ne peut
-  pas reproduire fidèlement sans un projet lié. Une fois le projet créé,
-  génère les vrais types et réintroduis le generic `<Database>`.
-- `src/proxy.ts` (convention Next.js 16, ex-`middleware.ts`) rafraîchit la
-  session Supabase et protège les routes authentifiées.
