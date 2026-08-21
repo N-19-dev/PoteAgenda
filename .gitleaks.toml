@@ -1,0 +1,14 @@
+title = "PoteAgenda gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "supabase-access-token"
+description = "Supabase personal/service access token (sbp_...)"
+regex = '''sbp_[a-f0-9]{40}'''
+
+# Les JWT (dont un service_role qui contourne RLS) sont déjà couverts par la
+# règle générique "jwt" du jeu de règles gitleaks par défaut (useDefault ci-
+# dessus) : impossible de distinguer anon/service_role par regex puisque le
+# payload est encodé en base64, seul un décodage le permettrait.

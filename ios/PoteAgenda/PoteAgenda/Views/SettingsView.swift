@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @ObservedObject private var locationService = LocationService.shared
     @State private var showDeleteConfirmation = false
+    @State private var pendingCalendar: EKCalendar?
+    @State private var pendingCalendarEventCount = 0
 
     var body: some View {
         NavigationStack {
@@ -42,6 +44,15 @@ struct SettingsView: View {
                     Text("Trajets")
                 }
 
+                Section {
+                    Toggle("Masquer le contenu des notifications", isOn: $dataStore.hideNotificationContent)
+                    Text("Sur l'écran verrouillé, les notifications n'affichent ni titre de sortie, ni nom d'expéditeur, ni contenu de message tant que tu n'as pas ouvert l'app.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Notifications")
+                }
+
                 Section("Backend") {
                     Text("Supabase + RLS")
                     Text("Les amis et groupes ne récupèrent que les créneaux autorisés par les politiques existantes.")
@@ -66,7 +77,33 @@ struct SettingsView: View {
             } message: {
                 Text("Toutes tes données (agenda, amis, groupes, sorties) seront supprimées. Cette action est irréversible.")
             }
+            .confirmationDialog(
+                "Importer ce calendrier ?",
+                isPresented: Binding(
+                    get: { pendingCalendar != nil },
+                    set: { if !$0 { pendingCalendar = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Importer \(pendingCalendarEventCount) événement\(pendingCalendarEventCount > 1 ? "s" : "")") {
+                    if let calendar = pendingCalendar {
+                        Task { await dataStore.connectDeviceCalendar(calendar) }
+                    }
+                    pendingCalendar = nil
+                }
+                Button("Annuler", role: .cancel) { pendingCalendar = nil }
+            } message: {
+                Text(pendingCalendarSummary)
+            }
         }
+    }
+
+    private var pendingCalendarSummary: String {
+        let horizon = EventKitService.horizonDays
+        let titlePart = dataStore.importRealEventTitles
+            ? "avec leur titre réel (import des titres activé dans les réglages)"
+            : "uniquement comme \"Occupé\", sans titre"
+        return "\(pendingCalendarEventCount) événement\(pendingCalendarEventCount > 1 ? "s" : "") des \(horizon) prochains jours seront envoyés au serveur, \(titlePart)."
     }
 
     @ViewBuilder
@@ -75,6 +112,8 @@ struct SettingsView: View {
             ForEach(dataStore.calendarSources) { source in
                 CalendarSourceRow(source: source)
             }
+
+            Toggle("Importer le vrai titre de mes événements", isOn: $dataStore.importRealEventTitles)
 
             switch dataStore.deviceCalendarAuthorizationStatus {
             case .fullAccess:
@@ -86,7 +125,8 @@ struct SettingsView: View {
                     Menu {
                         ForEach(availableDeviceCalendars, id: \.calendarIdentifier) { calendar in
                             Button(calendar.title) {
-                                Task { await dataStore.connectDeviceCalendar(calendar) }
+                                pendingCalendarEventCount = dataStore.upcomingEventCount(for: calendar)
+                                pendingCalendar = calendar
                             }
                         }
                     } label: {
@@ -107,7 +147,7 @@ struct SettingsView: View {
         } header: {
             Text("Calendriers connectés")
         } footer: {
-            Text("Les événements importés restent privés : seuls tes créneaux occupés/libres sont visibles par tes amis et groupes, jamais leur titre (sauf partage explicite).")
+            Text("Par défaut, seuls tes créneaux \"Occupé\" sont envoyés au serveur (jamais le vrai titre). Si tu actives l'import des titres réels, ils sont stockés côté serveur mais restent invisibles pour tes amis et groupes, sauf partage explicite.")
         }
     }
 

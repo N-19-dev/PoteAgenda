@@ -14,6 +14,18 @@ Supabase du projet (schema, RLS et RPC dans `supabase/migrations/`).
 4. Dans la target `PoteAgenda`, verifie ton `Team` Apple et lance sur iPhone ou
    simulateur.
 
+## Lancer les tests
+
+Dans Xcode : `Cmd+U` (ou Product → Test), avec la target `PoteAgendaTests`
+sélectionnée. Contient notamment :
+
+- `DateHelpersTests`, `AgendaModelsTests`, `InvitationLogicTests` — logique
+  métier.
+- `KeychainServiceTests` — vérifie que la session est stockée avec
+  l'accessibilité Keychain attendue (`AfterFirstUnlockThisDeviceOnly`).
+- `SupabaseServiceErrorMappingTests` — vérifie qu'aucune erreur backend
+  brute (SQL, RLS) ne fuit dans les messages affichés à l'utilisateur.
+
 ## Etat du portage
 
 Ce socle couvre deja :

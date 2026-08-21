@@ -1,0 +1,26 @@
+name: Database tests
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+
+jobs:
+  pgtap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase stack (applies migrations + seed.sql)
+        run: supabase start
+
+      - name: Run pgTAP regression tests
+        run: supabase test db --local

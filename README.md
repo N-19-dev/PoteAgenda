@@ -27,6 +27,25 @@ qu'elle utilise.
 Voir `ios/PoteAgenda/README.md` pour la configuration de `Supabase.plist` et
 le lancement dans Xcode.
 
+## Développer / tester en local (backend Supabase)
+
+Nécessite [Docker](https://docs.docker.com/get-docker/) et le CLI Supabase
+(`npx supabase` fonctionne sans installation globale) :
+
+```bash
+supabase start        # démarre Postgres + Auth + REST + Studio en local (Docker)
+supabase db reset      # recrée la base, applique supabase/migrations/ puis supabase/seed.sql
+supabase test db --local   # lance les tests pgTAP (supabase/tests/database/)
+supabase stop           # arrête le stack local
+```
+
+`supabase status` affiche les URLs locales (API, Studio sur
+`http://127.0.0.1:54323`, etc.) et les clés de dev. `supabase/seed.sql` est
+local uniquement (jamais poussé en prod) : il accorde les privilèges que la
+plateforme Supabase hébergée accorde automatiquement en dehors des
+migrations, pour que le comportement local corresponde à la prod — voir
+`docs/2026-08-21-security-review.md` pour le détail.
+
 ## Modèle de données & confidentialité
 
 - `profiles` — profil public minimal (pseudo, email), créé automatiquement à
@@ -59,4 +78,15 @@ ios/
       Resources/              Supabase.plist (config, non commité)
 supabase/
   migrations/                 schéma complet + RLS + RPC
+  tests/database/              tests pgTAP (RLS, RPC, non-régression)
+  seed.sql                     grants de dev local uniquement (jamais poussé en prod)
+docs/
+  2026-08-21-security-review.md  revue de sécurité + corrections + comment tester
 ```
+
+## Historique des revues
+
+- [`docs/2026-08-21-security-review.md`](docs/2026-08-21-security-review.md) —
+  revue de sécurité complète (failles d'autorisation RLS, fuite d'erreurs
+  backend, collecte calendrier, rétention des messages, Keychain,
+  notifications, validation des mentions) + tests de non-régression ajoutés.

@@ -40,9 +40,27 @@ final class AppDataStore: ObservableObject {
             Task { await scheduleDepartureReminders() }
         }
     }
+    /// Par défaut, seul "Occupé" est importé depuis un calendrier appareil :
+    /// le titre réel des événements n'est envoyé au backend que si
+    /// l'utilisateur active explicitement cette option.
+    @Published var importRealEventTitles: Bool {
+        didSet {
+            UserDefaults.standard.set(importRealEventTitles, forKey: Self.importRealEventTitlesDefaultsKey)
+        }
+    }
+    /// Activé par défaut (posture privacy) : les notifications locales
+    /// n'affichent ni titre de sortie, ni nom d'expéditeur, ni contenu de
+    /// message tant que le téléphone n'est pas déverrouillé et l'app ouverte.
+    @Published var hideNotificationContent: Bool {
+        didSet {
+            UserDefaults.standard.set(hideNotificationContent, forKey: Self.hideNotificationContentDefaultsKey)
+        }
+    }
 
     private static let travelModeDefaultsKey = "poteagenda.travelMode"
     private static let departureRemindersEnabledDefaultsKey = "poteagenda.departureRemindersEnabled"
+    private static let importRealEventTitlesDefaultsKey = "poteagenda.importRealEventTitles"
+    private static let hideNotificationContentDefaultsKey = "poteagenda.hideNotificationContent"
 
     private let service: SupabaseService
     /// `AppDataStore` est instancié une seule fois par `@StateObject`
@@ -65,6 +83,8 @@ final class AppDataStore: ObservableObject {
         let storedTravelMode = UserDefaults.standard.string(forKey: Self.travelModeDefaultsKey).flatMap(TravelMode.init(rawValue:))
         self.travelMode = storedTravelMode ?? .automobile
         self.departureRemindersEnabled = UserDefaults.standard.bool(forKey: Self.departureRemindersEnabledDefaultsKey)
+        self.importRealEventTitles = UserDefaults.standard.bool(forKey: Self.importRealEventTitlesDefaultsKey)
+        self.hideNotificationContent = UserDefaults.standard.object(forKey: Self.hideNotificationContentDefaultsKey) as? Bool ?? true
     }
 
     func updateSession(_ session: AuthSession) {
@@ -210,11 +230,17 @@ final class AppDataStore: ObservableObject {
             try await service.resyncCalendarSource(
                 session: session,
                 sourceId: source.id,
-                events: EventKitService.shared.fetchInputEvents(for: calendar)
+                events: EventKitService.shared.fetchInputEvents(for: calendar, includeRealTitles: importRealEventTitles)
             )
             calendarSources = try await service.calendarSources(session: session)
             try await refreshAgendaAfterSourceChange()
         }
+    }
+
+    /// Nombre d'événements qui seraient importés pour ce calendrier, à
+    /// afficher dans le résumé de confirmation avant la première synchro.
+    func upcomingEventCount(for calendar: EKCalendar) -> Int {
+        EventKitService.shared.countUpcomingEvents(for: calendar)
     }
 
     func resyncDeviceCalendarSource(_ source: CalendarSource) async {
@@ -229,7 +255,7 @@ final class AppDataStore: ObservableObject {
             try await service.resyncCalendarSource(
                 session: session,
                 sourceId: source.id,
-                events: EventKitService.shared.fetchInputEvents(for: calendar)
+                events: EventKitService.shared.fetchInputEvents(for: calendar, includeRealTitles: importRealEventTitles)
             )
             calendarSources = try await service.calendarSources(session: session)
             try await refreshAgendaAfterSourceChange()
@@ -399,7 +425,8 @@ final class AppDataStore: ObservableObject {
             await InvitationNotificationService.shared.scheduleDepartureReminder(
                 for: outing,
                 notifyAt: notifyAt,
-                minutesBeforeDeparture: 15
+                minutesBeforeDeparture: 15,
+                hideContent: hideNotificationContent
             )
         }
     }
@@ -448,7 +475,8 @@ final class AppDataStore: ObservableObject {
                 messageId: message.id,
                 outingTitle: titleById[message.outingId] ?? "une sortie",
                 senderName: message.profile?.username,
-                body: message.body
+                body: message.body,
+                hideContent: hideNotificationContent
             )
         }
     }
@@ -617,7 +645,7 @@ final class AppDataStore: ObservableObject {
         guard hasLoadedOutings else { return }
 
         for row in nextOutings where row.response == .pending && !knownReceivedOutingIds.contains(row.outing.id) {
-            await InvitationNotificationService.shared.notifyNewInvitation(row.outing)
+            await InvitationNotificationService.shared.notifyNewInvitation(row.outing, hideContent: hideNotificationContent)
         }
 
         for row in nextOutings where row.response == .pending {
@@ -625,7 +653,7 @@ final class AppDataStore: ObservableObject {
                 let remindedAt = row.participant.remindedAt,
                 !knownReminderKeys.contains("\(row.outing.id)-\(remindedAt)")
             else { continue }
-            await InvitationNotificationService.shared.notifyReminder(row.outing)
+            await InvitationNotificationService.shared.notifyReminder(row.outing, hideContent: hideNotificationContent)
         }
     }
 
@@ -661,26 +689,34 @@ final class InvitationNotificationService: NSObject, UNUserNotificationCenterDel
         _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
     }
 
-    func notifyNewInvitation(_ outing: Outing) async {
+    func notifyNewInvitation(_ outing: Outing, hideContent: Bool) async {
         await requestAuthorization()
         await schedule(
             identifier: "outing-invitation-\(outing.id)",
             title: "Nouvelle invitation",
-            body: outing.title
+            body: hideContent ? "Ouvre PoteAgenda pour voir les détails." : outing.title
         )
     }
 
-    func notifyReminder(_ outing: Outing) async {
+    func notifyReminder(_ outing: Outing, hideContent: Bool) async {
         await requestAuthorization()
         await schedule(
             identifier: "outing-reminder-\(outing.id)-\(DateHelpers.iso(Date()))",
             title: "Relance d'invitation",
-            body: outing.title
+            body: hideContent ? "Ouvre PoteAgenda pour voir les détails." : outing.title
         )
     }
 
-    func notifyMention(messageId: String, outingTitle: String, senderName: String?, body: String) async {
+    func notifyMention(messageId: String, outingTitle: String, senderName: String?, body: String, hideContent: Bool) async {
         await requestAuthorization()
+        if hideContent {
+            await schedule(
+                identifier: "outing-mention-\(messageId)",
+                title: "Tu as été mentionné·e",
+                body: "Ouvre PoteAgenda pour voir le message."
+            )
+            return
+        }
         let title = senderName.map { "\($0) t'a mentionné dans \(outingTitle)" }
             ?? "Tu as été mentionné dans \(outingTitle)"
         await schedule(identifier: "outing-mention-\(messageId)", title: title, body: body)
@@ -691,13 +727,16 @@ final class InvitationNotificationService: NSObject, UNUserNotificationCenterDel
     /// Remplace le rappel de départ déjà programmé pour cette sortie (même
     /// identifiant = `add` écrase l'ancien), pour refléter un trajet
     /// recalculé à chaque rafraîchissement.
-    func scheduleDepartureReminder(for outing: Outing, notifyAt: Date, minutesBeforeDeparture: Int) async {
+    func scheduleDepartureReminder(for outing: Outing, notifyAt: Date, minutesBeforeDeparture: Int, hideContent: Bool) async {
         guard notifyAt.timeIntervalSinceNow > 0 else { return }
         await requestAuthorization()
+        let body = hideContent
+            ? "Pars dans \(minutesBeforeDeparture) min pour arriver à l'heure."
+            : "Pars dans \(minutesBeforeDeparture) min pour arriver à l'heure à \(outing.title)."
         await schedule(
             identifier: "\(Self.departureReminderPrefix)\(outing.id)",
             title: "C'est bientôt l'heure de partir",
-            body: "Pars dans \(minutesBeforeDeparture) min pour arriver à l'heure à \(outing.title).",
+            body: body,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: notifyAt.timeIntervalSinceNow, repeats: false)
         )
     }

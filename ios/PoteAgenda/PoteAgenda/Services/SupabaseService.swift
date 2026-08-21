@@ -682,12 +682,35 @@ final class SupabaseService {
     }
 
     private func supabaseErrorMessage(from data: Data, statusCode: Int) -> String {
+        #if DEBUG
+        // Détails bruts (potentiellement des messages SQL/RLS) gardés en debug
+        // uniquement : ne jamais les remonter à l'utilisateur, ça facilite le
+        // probing de la structure de la base.
         if let error = try? decoder.decode(SupabaseErrorResponse.self, from: data) {
             let code = error.code.map { " \($0)" } ?? ""
-            return "Erreur Supabase \(statusCode)\(code): \(error.message)"
+            print("[Supabase] \(statusCode)\(code): \(error.message)")
+        } else if let body = String(data: data, encoding: .utf8), !body.isEmpty {
+            print("[Supabase] \(statusCode): \(body)")
         }
-        let body = String(data: data, encoding: .utf8)
-        return body?.isEmpty == false ? body! : "Erreur Supabase \(statusCode)"
+        #endif
+        return Self.genericErrorMessage(forStatusCode: statusCode)
+    }
+
+    static func genericErrorMessage(forStatusCode statusCode: Int) -> String {
+        switch statusCode {
+        case 401, 403:
+            return "Cette action n'est pas autorisée."
+        case 404:
+            return "Élément introuvable."
+        case 409:
+            return "Cette action entre en conflit avec une donnée existante."
+        case 429:
+            return "Trop de requêtes, réessaie dans un instant."
+        case 500...599:
+            return "Erreur serveur, réessaie plus tard."
+        default:
+            return "Une erreur est survenue. Réessaie."
+        }
     }
 
     private func isCancellation(_ error: Error) -> Bool {

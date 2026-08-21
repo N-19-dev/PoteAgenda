@@ -38,6 +38,8 @@
 		101000000000000000000033 /* AgendaModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000034 /* AgendaModelsTests.swift */; };
 		101000000000000000000034 /* InvitationLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000035 /* InvitationLogicTests.swift */; };
 		101000000000000000000036 /* Views/AuthenticatedRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000036 /* Views/AuthenticatedRootView.swift */; };
+		101000000000000000000037 /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000037 /* KeychainServiceTests.swift */; };
+		101000000000000000000038 /* SupabaseServiceErrorMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000038 /* SupabaseServiceErrorMappingTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +89,8 @@
 		102000000000000000000034 /* AgendaModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaModelsTests.swift; sourceTree = "<group>"; };
 		102000000000000000000035 /* InvitationLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvitationLogicTests.swift; sourceTree = "<group>"; };
 		102000000000000000000036 /* Views/AuthenticatedRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AuthenticatedRootView.swift; sourceTree = "<group>"; };
+		102000000000000000000037 /* KeychainServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainServiceTests.swift; sourceTree = "<group>"; };
+		102000000000000000000038 /* SupabaseServiceErrorMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseServiceErrorMappingTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -169,6 +173,8 @@
 				102000000000000000000033 /* DateHelpersTests.swift */,
 				102000000000000000000034 /* AgendaModelsTests.swift */,
 				102000000000000000000035 /* InvitationLogicTests.swift */,
+				102000000000000000000037 /* KeychainServiceTests.swift */,
+				102000000000000000000038 /* SupabaseServiceErrorMappingTests.swift */,
 			);
 			path = PoteAgendaTests;
 			sourceTree = "<group>";
@@ -310,6 +316,8 @@
 				101000000000000000000032 /* DateHelpersTests.swift in Sources */,
 				101000000000000000000033 /* AgendaModelsTests.swift in Sources */,
 				101000000000000000000034 /* InvitationLogicTests.swift in Sources */,
+				101000000000000000000037 /* KeychainServiceTests.swift in Sources */,
+				101000000000000000000038 /* SupabaseServiceErrorMappingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
