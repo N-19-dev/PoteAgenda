@@ -657,8 +657,6 @@ private struct AgendaWeekGrid: View {
                 }
                 .frame(width: proxy.size.width)
                 .background(Color.poteSecondaryGroupedBackground, in: RoundedRectangle(cornerRadius: 18))
-                .onAppear { logRenderCounts(dayWidth: dayWidth) }
-                .onChange(of: renderSignature) { logRenderCounts(dayWidth: dayWidth) }
             }
         }
     }
@@ -671,10 +669,6 @@ private struct AgendaWeekGrid: View {
 
     private var weekDates: [Date] {
         displayMode == .day ? [selectedDay] : DateHelpers.weekDates(for: selectedDay)
-    }
-
-    private var renderSignature: String {
-        "\(displayMode.rawValue)-\(weekDates.map(DateHelpers.apiDateString).joined(separator: ","))-\(blocks.map(\.id).joined(separator: "|"))"
     }
 
     private func weekHeader(dayWidth: CGFloat) -> some View {
@@ -1006,29 +1000,6 @@ private struct AgendaWeekGrid: View {
             guard let start = DateHelpers.parse(block.startAt), let end = DateHelpers.parse(block.endAt) else { return false }
             return start < bounds.end && end > bounds.start
         }
-    }
-
-    private func friendBusyCount(on day: Date) -> Int {
-        let bounds = DateHelpers.dayBounds(for: day)
-        return blocks.filter { block in
-            guard isFriendOverlayStyle(block.style) else { return false }
-            guard let start = DateHelpers.parse(block.startAt), let end = DateHelpers.parse(block.endAt) else { return false }
-            return start < bounds.end && end > bounds.start
-        }.count
-    }
-
-    private func logRenderCounts(dayWidth: CGFloat) {
-        let positionedBlocks = positionedBlocks(dayWidth: dayWidth)
-        let friendBusyCount = positionedFriendBusyBlocks(positionedBlocks).count
-        let eventCount = positionedEventBlocks(positionedBlocks).count
-        let totalFriendBusy = blocks.filter { $0.style == .friendBusy }.count
-        let unpositionedFriendBusy = blocks.filter { block in
-            guard block.style == .friendBusy else { return false }
-            return !positionedBlocks.contains { $0.block.id == block.id }
-        }
-        let sample = unpositionedFriendBusy.first.map { "\($0.startAt) -> \($0.endAt) parse=\(DateHelpers.parse($0.startAt) != nil)/\(DateHelpers.parse($0.endAt) != nil)" } ?? "none"
-        let visibleDays = weekDates.map(DateHelpers.apiDateString).joined(separator: "...")
-        print("PoteAgenda Week render: mode=\(displayMode.rawValue) days=\(visibleDays) friendBusyBlocks=\(totalFriendBusy) positionedFriendBusy=\(friendBusyCount) positionedEvents=\(eventCount) sampleUnpositioned=\(sample)")
     }
 
     private func positionedBlock(_ block: AgendaBlock, on day: Date, dayIndex: Int) -> PositionedAgendaBlock? {

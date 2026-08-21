@@ -670,26 +670,12 @@ final class SupabaseService {
             request.httpBody = try encoder.encode(body)
         }
 
-        print("PoteAgenda Supabase request: \(method) \(path)")
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            if isCancellation(error) {
-                print("PoteAgenda Supabase request cancelled: \(method) \(path)")
-                throw error
-            }
-            print("PoteAgenda Supabase transport error: \(method) \(path): \(error.localizedDescription)")
-            throw error
-        }
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw AppError.message("Réponse Supabase invalide.")
         }
-        print("PoteAgenda Supabase response: \(http.statusCode) \(method) \(path)")
         guard (200..<300).contains(http.statusCode) else {
             let message = supabaseErrorMessage(from: data, statusCode: http.statusCode)
-            print("PoteAgenda Supabase error: \(message)")
             throw AppError.message(message)
         }
         return data.isEmpty ? Data("{}".utf8) : data

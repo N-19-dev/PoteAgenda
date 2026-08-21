@@ -82,7 +82,6 @@ final class AppDataStore: ObservableObject {
                     start: start,
                     end: end
                 )
-                print("PoteAgenda Agenda data: friendsBusyEvents=\(friendsBusyEvents.count) acceptedFriends=\(acceptedFriendIds.count)")
             } catch {
                 if isCancellation(error) { throw error }
                 friendsBusyEvents = []
@@ -107,7 +106,6 @@ final class AppDataStore: ObservableObject {
                         start: start,
                         end: end
                     )
-                print("PoteAgenda Agenda data: groupBusyEvents=\(busyEvents.count) group=\(selectedGroup.name)")
             } catch {
                 if isCancellation(error) { throw error }
                 busyEvents = []
@@ -251,7 +249,6 @@ final class AppDataStore: ObservableObject {
                     start: bounds.start,
                     end: bounds.end
                 )
-                print("PoteAgenda Agenda data: friendsBusyEvents=\(friendsBusyEvents.count) acceptedFriends=\(acceptedFriendIds.count)")
             } catch {
                 if isCancellation(error) { throw error }
                 friendsBusyEvents = []
@@ -297,7 +294,6 @@ final class AppDataStore: ObservableObject {
                 selectedGroupMembers = try await service.groupMembers(session: session, groupId: selectedGroup.id)
                 let bounds = DateHelpers.monthBounds(for: selectedDay)
                 busyEvents = try await service.busyEvents(session: session, groupId: selectedGroup.id, start: bounds.start, end: bounds.end)
-                print("PoteAgenda Agenda data: groupBusyEvents=\(busyEvents.count) group=\(selectedGroup.name)")
             } else {
                 selectedGroupMembers = []
                 busyEvents = []
@@ -334,7 +330,6 @@ final class AppDataStore: ObservableObject {
             selectedGroupMembers = try await service.groupMembers(session: session, groupId: group.id)
             let bounds = DateHelpers.monthBounds(for: selectedDay)
             busyEvents = try await service.busyEvents(session: session, groupId: group.id, start: bounds.start, end: bounds.end)
-            print("PoteAgenda Agenda data: groupBusyEvents=\(busyEvents.count) group=\(group.name)")
         }
     }
 
