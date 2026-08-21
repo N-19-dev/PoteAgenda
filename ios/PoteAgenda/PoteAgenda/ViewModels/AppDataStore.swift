@@ -402,6 +402,14 @@ final class AppDataStore: ObservableObject {
         }
     }
 
+    func cancelOuting(_ outing: Outing) async {
+        await run {
+            try await service.cancelOuting(session: session, outingId: outing.id)
+            sentOutings = try await service.sentOutings(session: session)
+            outings = try await service.outings(session: session)
+        }
+    }
+
     func outingMessages(outingId: String) async throws -> [OutingMessage] {
         try await service.outingMessages(session: session, outingId: outingId)
     }

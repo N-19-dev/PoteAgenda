@@ -69,6 +69,7 @@ private struct GroupDetailView: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @State private var showingEditGroup = false
     @State private var showingAddMembers = false
+    @State private var draftEvent: AgendaDraftEvent?
     let group: PoteGroup
     let onOpenAgenda: () -> Void
 
@@ -131,8 +132,15 @@ private struct GroupDetailView: View {
                 }
             }
 
-            Section("Disponibilites") {
-                BusyTimelineView(events: dataStore.busyEvents)
+            Section {
+                WeeklyAvailabilityView(events: dataStore.busyEvents) { start, end in
+                    dataStore.agendaShowingGroupBusyEvents = true
+                    draftEvent = AgendaDraftEvent(startsAt: start, endsAt: end, slotStart: start, slotEnd: end)
+                }
+            } header: {
+                Text("Disponibilites cette semaine")
+            } footer: {
+                Text("Touchez un créneau pour proposer une invitation à ce moment-là.")
             }
         }
         .navigationTitle(group.name)
@@ -160,28 +168,112 @@ private struct GroupDetailView: View {
         .sheet(isPresented: $showingAddMembers) {
             AddGroupMembersView(group: group)
         }
+        .sheet(item: $draftEvent) { draft in
+            AddEventView(draft: draft)
+        }
     }
 }
 
-private struct BusyTimelineView: View {
+/// Créneaux où tout le monde est disponible en même temps, jour par jour sur
+/// la semaine en cours. Calculé comme le complément de l'union des
+/// indisponibilités de tous les membres, borné à une plage horaire éveillée
+/// (7h-23h) : afficher les heures de sommeil comme "libres" n'aiderait pas à
+/// caler un créneau.
+private struct WeeklyAvailabilityView: View {
     let events: [BusyEvent]
+    let onSelectRange: (Date, Date) -> Void
+
+    private static let dayWindowStartHour = 7
+    private static let dayWindowEndHour = 23
+
+    private struct DayAvailability: Identifiable {
+        let date: Date
+        let freeRanges: [(start: Date, end: Date)]
+        var id: Date { date }
+    }
+
+    private var days: [DayAvailability] {
+        let intervals: [(start: Date, end: Date)] = events.compactMap { event in
+            guard let start = DateHelpers.parse(event.startAt), let end = DateHelpers.parse(event.endAt), start < end else { return nil }
+            return (start, end)
+        }
+
+        return DateHelpers.weekDates(for: Date()).map { day in
+            let windowStart = DateHelpers.hourDate(on: day, hour: Self.dayWindowStartHour)
+            let windowEnd = DateHelpers.hourDate(on: day, hour: Self.dayWindowEndHour)
+
+            let busyToday = intervals
+                .map { (start: max($0.start, windowStart), end: min($0.end, windowEnd)) }
+                .filter { $0.start < $0.end }
+                .sorted { $0.start < $1.start }
+
+            var merged: [(start: Date, end: Date)] = []
+            for interval in busyToday {
+                if let last = merged.last, interval.start <= last.end {
+                    merged[merged.count - 1].end = max(last.end, interval.end)
+                } else {
+                    merged.append(interval)
+                }
+            }
+
+            var free: [(start: Date, end: Date)] = []
+            var cursor = windowStart
+            for interval in merged {
+                if cursor < interval.start {
+                    free.append((cursor, interval.start))
+                }
+                cursor = max(cursor, interval.end)
+            }
+            if cursor < windowEnd {
+                free.append((cursor, windowEnd))
+            }
+
+            return DayAvailability(date: day, freeRanges: free)
+        }
+    }
 
     var body: some View {
-        if events.isEmpty {
-            Text("Tout le monde semble libre sur cette période.")
-                .foregroundStyle(.secondary)
-        } else {
-            ForEach(Array(events.enumerated()), id: \.offset) { _, event in
-                HStack {
-                    Image(systemName: "clock.fill")
+        ForEach(days) { day in
+            VStack(alignment: .leading, spacing: 4) {
+                Text(dayTitle(day.date))
+                    .font(.subheadline.weight(.semibold))
+                if day.freeRanges.isEmpty {
+                    Text("Aucun créneau commun")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    VStack(alignment: .leading) {
-                        Text(event.title ?? "Occupé")
-                        EventTimeText(start: event.startAt, end: event.endAt)
+                } else {
+                    ForEach(Array(day.freeRanges.enumerated()), id: \.offset) { _, range in
+                        Button {
+                            onSelectRange(range.start, range.end)
+                        } label: {
+                            HStack {
+                                Text("Libre de \(rangeText(range))")
+                                    .font(.subheadline)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .foregroundStyle(.secondary)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
+            .padding(.vertical, 2)
         }
+    }
+
+    private func dayTitle(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.dateFormat = "EEEE d MMMM"
+        return formatter.string(from: date).prefix(1).uppercased() + formatter.string(from: date).dropFirst()
+    }
+
+    private func rangeText(_ range: (start: Date, end: Date)) -> String {
+        "\(DateHelpers.displayTimeString(range.start)) à \(DateHelpers.displayTimeString(range.end))"
     }
 }
 

@@ -451,6 +451,24 @@ final class SupabaseService {
         )
     }
 
+    /// Annulation "douce" : on marque `cancelled_at` plutôt que de supprimer
+    /// la ligne, pour que les participants gardent un historique cohérent
+    /// (rappels, discussion) au lieu d'un identifiant d'un coup introuvable.
+    /// `outings()`/`sentOutings()` filtrent déjà sur `cancelled_at is null`,
+    /// donc la sortie disparaît immédiatement des deux listes.
+    func cancelOuting(session: AuthSession, outingId: String) async throws {
+        _ = try await rawRequest(
+            path: "/rest/v1/outings",
+            queryItems: [
+                .init(name: "id", value: "eq.\(outingId)"),
+                .init(name: "creator_id", value: "eq.\(session.user.id)")
+            ],
+            method: "PATCH",
+            session: session,
+            body: UpdateOutingCancellationPayload(cancelled_at: DateHelpers.iso(Date()))
+        )
+    }
+
     /// Renvoie les 200 messages les plus recents, dans l'ordre chronologique.
     /// La retention courte (1 a 7 jours apres la sortie) borne naturellement le
     /// volume ; ce plafond evite surtout de re-telecharger un historique qui
@@ -749,6 +767,10 @@ private struct UpdateOutingResponsePayload: Encodable {
 
 private struct UpdateOutingConfirmationPayload: Encodable {
     let confirmed_at: String?
+}
+
+private struct UpdateOutingCancellationPayload: Encodable {
+    let cancelled_at: String
 }
 
 private struct RemindOutingParticipantPayload: Encodable {

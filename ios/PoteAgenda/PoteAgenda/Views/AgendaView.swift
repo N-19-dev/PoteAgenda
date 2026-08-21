@@ -294,20 +294,29 @@ private enum AgendaDisplayMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-private struct AgendaDraftEvent: Identifiable {
+struct AgendaDraftEvent: Identifiable {
     let id = UUID()
     let startsAt: Date
     let endsAt: Date
+    /// Bornes du créneau où tout le monde est disponible, quand ce brouillon
+    /// vient d'un tap sur une disponibilité commune : le début/fin restent
+    /// ajustables mais ne doivent pas sortir de ce créneau.
+    let slotStart: Date?
+    let slotEnd: Date?
 
     init(day: Date) {
         let start = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: day) ?? day
         self.startsAt = start
         self.endsAt = Calendar.current.date(byAdding: .hour, value: 1, to: start) ?? start
+        self.slotStart = nil
+        self.slotEnd = nil
     }
 
-    init(startsAt: Date, endsAt: Date) {
+    init(startsAt: Date, endsAt: Date, slotStart: Date? = nil, slotEnd: Date? = nil) {
         self.startsAt = startsAt
         self.endsAt = endsAt
+        self.slotStart = slotStart
+        self.slotEnd = slotEnd
     }
 }
 
@@ -1076,6 +1085,7 @@ private struct AgendaBlockDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var locallyRemindedParticipantIds = Set<String>()
     @State private var receivedParticipants: [OutingParticipantRow] = []
+    @State private var showingCancelConfirmation = false
     let block: AgendaBlock
     let onClose: () -> Void
 
@@ -1125,6 +1135,22 @@ private struct AgendaBlockDetailSheet: View {
         }
         .task(id: block.id) {
             await loadReceivedParticipantsIfNeeded()
+        }
+        .confirmationDialog(
+            "Supprimer cette invitation ?",
+            isPresented: $showingCancelConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                guard case .sentOuting(let row) = block.details else { return }
+                Task {
+                    await dataStore.cancelOuting(row.outing)
+                    dismissSheet()
+                }
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Les participants ne verront plus cette invitation et la discussion associée sera fermée.")
         }
     }
 
@@ -1314,6 +1340,12 @@ private struct AgendaBlockDetailSheet: View {
                 }
                 .disabled(row.response == .pending)
             }
+        case .sentOuting:
+            Section {
+                Button("Supprimer l'invitation", role: .destructive) {
+                    showingCancelConfirmation = true
+                }
+            }
         default:
             EmptyView()
         }
@@ -1378,7 +1410,7 @@ private struct DetailLocationRow: View {
     }
 }
 
-private struct AddEventView: View {
+struct AddEventView: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @Environment(\.dismiss) private var dismiss
     @State private var kind: AgendaCreationKind = .outing
@@ -1392,10 +1424,85 @@ private struct AddEventView: View {
     @State private var selectedFriendIds = Set<String>()
     @State private var selectedGroupId: String?
     @State private var friendSearchQuery = ""
+    private let slotStart: Date?
+    private let slotEnd: Date?
 
     init(draft: AgendaDraftEvent) {
         _startsAt = State(initialValue: draft.startsAt)
         _endsAt = State(initialValue: draft.endsAt)
+        slotStart = draft.slotStart
+        slotEnd = draft.slotEnd
+    }
+
+    /// Membres/amis invités dont une indisponibilité connue chevauche le
+    /// créneau actuellement choisi. On laisse l'utilisateur créer
+    /// l'invitation quand même : mieux vaut prévenir que bloquer, la personne
+    /// pourra toujours répondre "je ne peux pas" elle-même.
+    /// Ce brouillon vient du tap sur une disponibilité commune calculée à
+    /// partir des indisponibilités du groupe : dans ce cas `dataStore.busyEvents`
+    /// et `dataStore.selectedGroupMembers` sont garantis correspondre à ce
+    /// groupe (c'est cette même donnée qui a servi à calculer le créneau), donc
+    /// on peut s'y fier sans dépendre du timing de `selectedGroupId`.
+    private var groupBusyEventsApply: Bool {
+        slotStart != nil || (selectedGroupId != nil && selectedGroupId == dataStore.selectedGroup?.id)
+    }
+
+    private var conflictingUserIds: [String] {
+        guard startsAt < endsAt else { return [] }
+        var invitedIds = selectedFriendIds
+        if groupBusyEventsApply {
+            invitedIds.formUnion(dataStore.selectedGroupMembers.map { $0.member.userId })
+        }
+        invitedIds.remove(dataStore.currentUserId)
+
+        var relevantEvents = dataStore.friendsBusyEvents
+        if groupBusyEventsApply {
+            relevantEvents += dataStore.busyEvents
+        }
+
+        var conflicts = Set<String>()
+        for event in relevantEvents {
+            guard invitedIds.contains(event.userId),
+                  let eventStart = DateHelpers.parse(event.startAt),
+                  let eventEnd = DateHelpers.parse(event.endAt),
+                  eventStart < endsAt, eventEnd > startsAt
+            else { continue }
+            conflicts.insert(event.userId)
+        }
+        return conflicts.sorted { displayName(for: $0) < displayName(for: $1) }
+    }
+
+    private var isOutsideKnownFreeSlot: Bool {
+        guard let slotStart, let slotEnd, startsAt < endsAt else { return false }
+        return startsAt < slotStart || endsAt > slotEnd
+    }
+
+    /// Message d'alerte prioritairement nominatif : on nomme qui n'est plus
+    /// disponible dès qu'on le sait ; le message générique ne sert que de
+    /// filet quand on sait juste qu'on sort du créneau commun sans pouvoir
+    /// dire précisément qui pose problème (ex. données pas encore chargées).
+    private var conflictWarning: String? {
+        let names = conflictingUserIds.map(displayName)
+        if !names.isEmpty {
+            let joined = names.joined(separator: ", ")
+            return names.count > 1
+                ? "Attention : \(joined) ne sont plus disponibles sur ce créneau."
+                : "Attention : \(joined) n'est plus disponible sur ce créneau."
+        }
+        if isOutsideKnownFreeSlot {
+            return "Attention : vous sortez du créneau où tout le monde était disponible."
+        }
+        return nil
+    }
+
+    private func displayName(for userId: String) -> String {
+        if let friend = dataStore.acceptedFriends.first(where: { dataStore.friendUserId(for: $0) == userId }) {
+            return friend.profile?.username ?? "Ami"
+        }
+        if let member = dataStore.selectedGroupMembers.first(where: { $0.member.userId == userId }) {
+            return member.profile?.username ?? "Membre"
+        }
+        return "Quelqu'un"
     }
 
     var body: some View {
@@ -1408,7 +1515,7 @@ private struct AddEventView: View {
                 }
                 .pickerStyle(.segmented)
 
-                Section("Créneau") {
+                Section {
                     TextField("Titre", text: $title)
                     DatePicker("Début", selection: $startsAt)
                         .onChange(of: startsAt) { _, newValue in
@@ -1417,6 +1524,17 @@ private struct AddEventView: View {
                             }
                         }
                     DatePicker("Fin", selection: $endsAt, in: startsAt...)
+                    if let warning = conflictWarning {
+                        Label(warning, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("Créneau")
+                } footer: {
+                    if let slotStart, let slotEnd, conflictWarning == nil {
+                        Text("Ce créneau vient d'une disponibilité commune entre \(DateHelpers.displayTimeString(slotStart)) et \(DateHelpers.displayTimeString(slotEnd)).")
+                    }
                 }
 
                 if kind == .busy {

@@ -165,6 +165,8 @@ private struct ReceivedInvitationDetailView: View {
 
 private struct SentInvitationDetailView: View {
     @EnvironmentObject private var dataStore: AppDataStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingCancelConfirmation = false
     let row: SentOutingRow
 
     var body: some View {
@@ -229,6 +231,12 @@ private struct SentInvitationDetailView: View {
                         systemImage: row.outing.confirmedAt == nil ? "checkmark.seal.fill" : "arrow.uturn.backward.circle"
                     )
                 }
+
+                Button(role: .destructive) {
+                    showingCancelConfirmation = true
+                } label: {
+                    Label("Supprimer l'invitation", systemImage: "trash")
+                }
             }
 
             if canDiscussOuting(row.outing) {
@@ -237,6 +245,21 @@ private struct SentInvitationDetailView: View {
         }
         .navigationTitle("Invitation envoyée")
         .poteInlineNavigationTitle()
+        .confirmationDialog(
+            "Supprimer cette invitation ?",
+            isPresented: $showingCancelConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                Task {
+                    await dataStore.cancelOuting(row.outing)
+                    dismiss()
+                }
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Les participants ne verront plus cette invitation et la discussion associée sera fermée.")
+        }
     }
 }
 
