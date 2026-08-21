@@ -26,10 +26,12 @@ struct SupabaseConfig {
 
 enum AppError: LocalizedError {
     case message(String)
+    case http(status: Int, message: String)
 
     var errorDescription: String? {
         switch self {
         case .message(let message): message
+        case .http(_, let message): message
         }
     }
 }

@@ -19,6 +19,7 @@ struct AgendaToolbar: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Période précédente")
 
                 Button("Aujourd'hui") {
                     selectedDay = Date()
@@ -33,6 +34,7 @@ struct AgendaToolbar: View {
                     Image(systemName: "chevron.right")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Période suivante")
 
                 Spacer()
 

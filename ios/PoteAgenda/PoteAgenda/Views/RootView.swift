@@ -6,7 +6,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if let session = sessionStore.session {
-                MainTabView(dataStore: AppDataStore(service: sessionStore.service, session: session))
+                AuthenticatedRootView(service: sessionStore.service, session: session)
             } else {
                 AuthView()
             }

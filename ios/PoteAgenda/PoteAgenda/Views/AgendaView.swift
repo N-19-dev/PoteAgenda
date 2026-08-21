@@ -88,6 +88,7 @@ struct AgendaView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("Ajouter un événement")
                 }
             }
             .task {

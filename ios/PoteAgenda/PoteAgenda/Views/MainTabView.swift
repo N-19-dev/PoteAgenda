@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject private var sessionStore: SessionStore
-    @StateObject var dataStore: AppDataStore
+    @EnvironmentObject private var dataStore: AppDataStore
     @State private var selectedTab: PoteTab = .agenda
 
     var body: some View {
@@ -31,7 +31,6 @@ struct MainTabView: View {
                 .tabItem { Label("Compte", systemImage: "person.crop.circle") }
                 .tag(PoteTab.settings)
         }
-        .environmentObject(dataStore)
         .task {
             await dataStore.requestNotificationAuthorization()
             if dataStore.departureRemindersEnabled {
@@ -39,9 +38,10 @@ struct MainTabView: View {
             }
             await dataStore.refreshAll()
         }
-        // `dataStore` est créé une seule fois (cf. AppDataStore.session) ; il faut
-        // donc répercuter explicitement tout renouvellement de session ici, sinon
-        // il continuerait à utiliser un token périmé jusqu'à la déconnexion.
+        // `dataStore` est créé une seule fois par AuthenticatedRootView (cf.
+        // AppDataStore.session) ; il faut donc répercuter explicitement tout
+        // renouvellement de session ici, sinon il continuerait à utiliser un
+        // token périmé jusqu'à la déconnexion.
         .onChange(of: sessionStore.session) { _, newSession in
             if let newSession {
                 dataStore.updateSession(newSession)

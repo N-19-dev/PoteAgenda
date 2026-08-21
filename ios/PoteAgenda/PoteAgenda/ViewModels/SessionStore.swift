@@ -14,6 +14,10 @@ final class SessionStore: ObservableObject {
     /// rafraîchissement proactif, pour qu'aucune requête ne parte jamais avec
     /// un token déjà expiré pendant que l'app est active.
     private static let refreshBuffer: TimeInterval = 60
+    /// Délai avant de retenter un rafraîchissement après un échec temporaire
+    /// (réseau indisponible, 5xx Supabase) : on ne déconnecte pas l'utilisateur
+    /// pour ce genre d'erreur, on retente plus tard.
+    private static let refreshRetryDelay: TimeInterval = 30
     private var sessionExpiresAt: Date?
     private var refreshTask: Task<Void, Never>?
 
@@ -104,14 +108,34 @@ final class SessionStore: ObservableObject {
 
     /// Rafraîchit la session, ou renvoie proprement vers la connexion si le
     /// refresh token n'est plus valide (il n'y a pas de récupération
-    /// silencieuse possible dans ce cas).
+    /// silencieuse possible dans ce cas). Une panne réseau ou une erreur 5xx
+    /// Supabase est temporaire : on garde la session en place et on retente,
+    /// plutôt que de déconnecter l'utilisateur pour un problème passager.
     private func performRefresh(from current: AuthSession) async {
         do {
             session = try await service.refresh(session: current)
             persist()
         } catch {
-            session = nil
-            KeychainService.delete(forKey: storageKey)
+            if isInvalidRefreshToken(error) {
+                session = nil
+                KeychainService.delete(forKey: storageKey)
+            } else {
+                scheduleRetry(from: current)
+            }
+        }
+    }
+
+    private func isInvalidRefreshToken(_ error: Error) -> Bool {
+        guard case AppError.http(let status, _) = error else { return false }
+        return status == 400 || status == 401
+    }
+
+    private func scheduleRetry(from current: AuthSession) {
+        refreshTask?.cancel()
+        refreshTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.refreshRetryDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.performRefresh(from: current)
         }
     }
 

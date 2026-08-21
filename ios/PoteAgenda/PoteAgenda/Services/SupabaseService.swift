@@ -676,7 +676,7 @@ final class SupabaseService {
         }
         guard (200..<300).contains(http.statusCode) else {
             let message = supabaseErrorMessage(from: data, statusCode: http.statusCode)
-            throw AppError.message(message)
+            throw AppError.http(status: http.statusCode, message: message)
         }
         return data.isEmpty ? Data("{}".utf8) : data
     }

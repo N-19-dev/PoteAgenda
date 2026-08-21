@@ -142,7 +142,15 @@ extension LocationService: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let coordinate = locations.last?.coordinate else { return }
+        guard let coordinate = locations.last?.coordinate else {
+            // CoreLocation ne devrait pas rappeler avec une liste vide, mais si
+            // ça arrive, on échoue tout de suite plutôt que de laisser les
+            // appelants attendre le timeout de 15s pour rien.
+            Task { @MainActor in
+                self.failPending(with: LocationServiceError.unableToLocate)
+            }
+            return
+        }
         Task { @MainActor in
             self.resolvePending(with: coordinate)
         }
