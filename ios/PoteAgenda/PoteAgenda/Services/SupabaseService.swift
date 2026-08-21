@@ -321,11 +321,13 @@ final class SupabaseService {
             body: Optional<EmptyBody>.none
         )
         let outingsById = try await outings(session: session, ids: participants.map(\.outingId))
-        return participants.compactMap { participant in
-            guard let outing = outingsById[participant.outingId], outing.cancelledAt == nil else { return nil }
-            guard outing.creatorId != session.user.id else { return nil }
-            return ReceivedOutingRow(outing: outing, participant: participant)
-        }
+        return participants
+            .compactMap { participant -> ReceivedOutingRow? in
+                guard let outing = outingsById[participant.outingId], outing.cancelledAt == nil else { return nil }
+                guard outing.creatorId != session.user.id else { return nil }
+                return ReceivedOutingRow(outing: outing, participant: participant)
+            }
+            .sorted { $0.outing.startsAt < $1.outing.startsAt }
     }
 
     func sentOutings(session: AuthSession) async throws -> [SentOutingRow] {

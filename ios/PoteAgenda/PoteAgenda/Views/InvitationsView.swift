@@ -46,11 +46,14 @@ private enum InvitationsTab: String, CaseIterable, Identifiable {
 private struct ReceivedInvitationsSection: View {
     let outings: [ReceivedOutingRow]
 
+    private var upcoming: [ReceivedOutingRow] { outings.filter { !isOutingPast($0.outing) } }
+    private var past: [ReceivedOutingRow] { outings.filter { isOutingPast($0.outing) } }
+
     var body: some View {
-        if outings.isEmpty {
+        if upcoming.isEmpty {
             EmptyStateView(title: "Aucune invitation reçue", systemImage: "envelope.open")
         } else {
-            ForEach(outings) { row in
+            ForEach(upcoming) { row in
                 NavigationLink {
                     ReceivedInvitationDetailView(row: row)
                 } label: {
@@ -63,17 +66,29 @@ private struct ReceivedInvitationsSection: View {
                 }
             }
         }
+
+        if !past.isEmpty {
+            NavigationLink {
+                ArchivedReceivedInvitationsView(outings: past)
+            } label: {
+                Label("Invitations passées (\(past.count))", systemImage: "archivebox")
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
 private struct SentInvitationsSection: View {
     let outings: [SentOutingRow]
 
+    private var upcoming: [SentOutingRow] { outings.filter { !isOutingPast($0.outing) } }
+    private var past: [SentOutingRow] { outings.filter { isOutingPast($0.outing) } }
+
     var body: some View {
-        if outings.isEmpty {
+        if upcoming.isEmpty {
             EmptyStateView(title: "Aucune invitation envoyée", systemImage: "paperplane")
         } else {
-            ForEach(outings) { row in
+            ForEach(upcoming) { row in
                 NavigationLink {
                     SentInvitationDetailView(row: row)
                 } label: {
@@ -85,6 +100,59 @@ private struct SentInvitationsSection: View {
                 }
             }
         }
+
+        if !past.isEmpty {
+            NavigationLink {
+                ArchivedSentInvitationsView(outings: past)
+            } label: {
+                Label("Invitations passées (\(past.count))", systemImage: "archivebox")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct ArchivedReceivedInvitationsView: View {
+    let outings: [ReceivedOutingRow]
+
+    var body: some View {
+        List {
+            ForEach(outings.sorted { $0.outing.startsAt > $1.outing.startsAt }) { row in
+                NavigationLink {
+                    ReceivedInvitationDetailView(row: row)
+                } label: {
+                    InvitationSummaryView(
+                        outing: row.outing,
+                        status: row.response.label,
+                        statusStyle: row.response.statusStyle
+                    )
+                }
+            }
+        }
+        .navigationTitle("Invitations passées")
+        .poteInlineNavigationTitle()
+    }
+}
+
+private struct ArchivedSentInvitationsView: View {
+    let outings: [SentOutingRow]
+
+    var body: some View {
+        List {
+            ForEach(outings.sorted { $0.outing.startsAt > $1.outing.startsAt }) { row in
+                NavigationLink {
+                    SentInvitationDetailView(row: row)
+                } label: {
+                    InvitationSummaryView(
+                        outing: row.outing,
+                        status: row.summary,
+                        statusStyle: row.outing.confirmedAt == nil ? .neutral : .accepted
+                    )
+                }
+            }
+        }
+        .navigationTitle("Invitations passées")
+        .poteInlineNavigationTitle()
     }
 }
 
@@ -427,6 +495,11 @@ private extension View {
         self
         #endif
     }
+}
+
+private func isOutingPast(_ outing: Outing) -> Bool {
+    guard let ends = DateHelpers.parse(outing.endsAt) else { return false }
+    return ends < Date()
 }
 
 func canDiscussOuting(_ outing: Outing) -> Bool {
