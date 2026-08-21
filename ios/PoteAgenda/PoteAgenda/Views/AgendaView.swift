@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 
 struct AgendaView: View {
@@ -126,7 +127,7 @@ struct AgendaView: View {
                 }
             }
             .confirmationDialog(
-                "Indisponibilite",
+                "Indisponibilité",
                 isPresented: Binding(
                     get: { eventToDelete != nil },
                     set: { if !$0 { eventToDelete = nil } }
@@ -163,7 +164,7 @@ struct AgendaView: View {
             AgendaBlock(
                 id: "sent-outing-\(row.outing.id)",
                 title: row.outing.title,
-                subtitle: row.outing.confirmedAt == nil ? "En attente" : "Confirme",
+                subtitle: row.outing.confirmedAt == nil ? "En attente" : "Confirmé",
                 startAt: row.outing.startsAt,
                 endAt: row.outing.endsAt,
                 color: row.outing.confirmedAt == nil ? "#f97316" : "#22c55e",
@@ -178,13 +179,13 @@ struct AgendaView: View {
                 AgendaBlock(
                     id: "friend-\(busyEvent.userId)-\(busyEvent.startAt)",
                     title: friendName(for: busyEvent.userId),
-                    subtitle: "Occupe",
+                    subtitle: "Occupé",
                     startAt: busyEvent.startAt,
                     endAt: busyEvent.endAt,
                     color: "#8e8e93",
                     ownEvent: nil,
                     style: .friendBusy,
-                    details: .friendBusy(busyEvent, friendName(for: busyEvent.userId), "Ami selectionne")
+                    details: .friendBusy(busyEvent, friendName(for: busyEvent.userId), "Ami sélectionné")
                 )
             }
 
@@ -334,6 +335,8 @@ private struct AgendaToolbar: View {
                     selectedDay = Date()
                 }
                 .buttonStyle(.bordered)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
 
                 Button {
                     moveWeek(by: 1)
@@ -382,25 +385,11 @@ private struct FriendsFilterMenu: View {
     @EnvironmentObject private var dataStore: AppDataStore
     let acceptedFriends: [FriendRow]
     @Binding var selectedFriendIds: Set<String>
+    @State private var showingPicker = false
 
     var body: some View {
-        Menu {
-            Button("Tous les amis") {
-                selectedFriendIds = Set(acceptedFriends.map { dataStore.friendUserId(for: $0) })
-            }
-
-            Button("Aucun") {
-                selectedFriendIds.removeAll()
-            }
-
-            ForEach(acceptedFriends) { friend in
-                Button {
-                    toggle(dataStore.friendUserId(for: friend))
-                } label: {
-                    let friendId = dataStore.friendUserId(for: friend)
-                    Label(friend.profile?.username ?? "Ami", systemImage: selectedFriendIds.contains(friendId) ? "checkmark.circle.fill" : "circle")
-                }
-            }
+        Button {
+            showingPicker = true
         } label: {
             HStack {
                 Image(systemName: "person.2.fill")
@@ -413,18 +402,78 @@ private struct FriendsFilterMenu: View {
             .padding(.vertical, 10)
             .background(Color.poteSecondaryGroupedBackground, in: RoundedRectangle(cornerRadius: 12))
         }
+        .buttonStyle(.plain)
         .disabled(acceptedFriends.isEmpty)
+        .sheet(isPresented: $showingPicker) {
+            FriendsFilterPicker(acceptedFriends: acceptedFriends, selectedFriendIds: $selectedFriendIds)
+        }
     }
 
     private var filterTitle: String {
-        if acceptedFriends.isEmpty { return "Aucun ami accepte" }
-        if selectedFriendIds.isEmpty { return "Aucun ami affiche" }
+        if acceptedFriends.isEmpty { return "Aucun ami accepté" }
+        if selectedFriendIds.isEmpty { return "Aucun ami affiché" }
         if selectedFriendIds.count == acceptedFriends.count { return "Tous les amis" }
         if selectedFriendIds.count == 1 {
             let selected = acceptedFriends.first { selectedFriendIds.contains(dataStore.friendUserId(for: $0)) }
             return selected?.profile?.username ?? "1 ami"
         }
         return "\(selectedFriendIds.count) amis"
+    }
+}
+
+private struct FriendsFilterPicker: View {
+    @EnvironmentObject private var dataStore: AppDataStore
+    let acceptedFriends: [FriendRow]
+    @Binding var selectedFriendIds: Set<String>
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchQuery = ""
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Button("Tous les amis") {
+                    selectedFriendIds = Set(acceptedFriends.map { dataStore.friendUserId(for: $0) })
+                }
+
+                Button("Aucun") {
+                    selectedFriendIds.removeAll()
+                }
+
+                ForEach(filteredFriends) { friend in
+                    let friendId = dataStore.friendUserId(for: friend)
+                    Button {
+                        toggle(friendId)
+                    } label: {
+                        Label(friend.profile?.username ?? "Ami", systemImage: selectedFriendIds.contains(friendId) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(.primary)
+                    }
+                }
+
+                if filteredFriends.isEmpty {
+                    Text("Aucun ami trouvé")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .searchable(text: $searchQuery, prompt: "Rechercher un ami")
+            .navigationTitle("Amis")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("OK") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var filteredFriends: [FriendRow] {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return acceptedFriends }
+        return acceptedFriends.filter { friend in
+            let username = friend.profile?.username ?? ""
+            let email = friend.profile?.email ?? ""
+            return username.localizedCaseInsensitiveContains(query)
+                || email.localizedCaseInsensitiveContains(query)
+        }
     }
 
     private func toggle(_ id: String) {
@@ -476,8 +525,8 @@ private struct GroupFilterMenu: View {
 
     private var groupTitle: String {
         if groups.isEmpty { return "Aucun groupe" }
-        guard showingGroupBusyEvents else { return "Aucun groupe affiche" }
-        return selectedGroup?.name ?? "Groupe affiche"
+        guard showingGroupBusyEvents else { return "Aucun groupe affiché" }
+        return selectedGroup?.name ?? "Groupe affiché"
     }
 }
 
@@ -843,7 +892,7 @@ private struct AgendaMonthGrid: View {
                         Spacer()
                         let count = blockCount(on: day)
                         if count > 0 {
-                            Text("\(count) occupe")
+                            Text("\(count) occupé")
                                 .font(.caption2.weight(.bold))
                                 .lineLimit(1)
                                 .foregroundStyle(.white)
@@ -1026,6 +1075,7 @@ private struct AgendaBlockDetailSheet: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @Environment(\.dismiss) private var dismiss
     @State private var locallyRemindedParticipantIds = Set<String>()
+    @State private var receivedParticipants: [OutingParticipantRow] = []
     let block: AgendaBlock
     let onClose: () -> Void
 
@@ -1063,7 +1113,7 @@ private struct AgendaBlockDetailSheet: View {
                 actionSections
                 discussionSection
             }
-            .navigationTitle("Detail")
+            .navigationTitle("Détail")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1073,6 +1123,23 @@ private struct AgendaBlockDetailSheet: View {
                 }
             }
         }
+        .task(id: block.id) {
+            await loadReceivedParticipantsIfNeeded()
+        }
+    }
+
+    private func loadReceivedParticipantsIfNeeded() async {
+        guard case .receivedOuting(let row) = block.details else { return }
+        receivedParticipants = (try? await dataStore.outingParticipants(outingId: row.outing.id)) ?? []
+    }
+
+    private func organizerName(for row: ReceivedOutingRow) -> String? {
+        receivedParticipants.first { $0.participant.userId == row.outing.creatorId }?.profile?.username
+    }
+
+    private func participantDisplayName(_ participant: OutingParticipantRow, creatorId: String) -> String {
+        let name = participant.profile?.username ?? "Invité"
+        return participant.participant.userId == creatorId ? "\(name) (organisateur)" : name
     }
 
     private var headerTitle: String {
@@ -1097,28 +1164,44 @@ private struct AgendaBlockDetailSheet: View {
     private var detailSections: some View {
         switch block.details {
         case .ownEvent(let event):
-            Section("Indisponibilite") {
+            Section("Indisponibilité") {
                 DetailRow(label: "Titre", value: event.title)
                 DetailRow(label: "Source", value: event.source)
             }
         case .receivedOuting(let row):
             Section("Invitation") {
                 DetailRow(label: "Statut", value: row.response.agendaLabel)
+                if let organizerName = organizerName(for: row) {
+                    DetailRow(label: "Invité par", value: organizerName)
+                }
                 if let remindedAt = row.participant.remindedAt, row.response == .pending {
                     DetailRow(label: "Relance", value: DateHelpers.displayDateTimeString(remindedAt))
                 }
                 if let location = row.outing.location, !location.isEmpty {
-                    DetailRow(label: "Lieu", value: location)
+                    DetailLocationRow(location: location)
                 }
                 if let note = row.outing.note, !note.isEmpty {
                     DetailRow(label: "Note", value: note)
                 }
             }
+            if !receivedParticipants.isEmpty {
+                Section("Participants") {
+                    ForEach(receivedParticipants) { participant in
+                        HStack {
+                            Text(participantDisplayName(participant, creatorId: row.outing.creatorId))
+                            Spacer()
+                            Text(participant.participant.response.agendaLabel)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Color(hex: participant.participant.response.agendaColor))
+                        }
+                    }
+                }
+            }
         case .sentOuting(let row):
-            Section("Invitation envoyee") {
-                DetailRow(label: "Statut", value: row.outing.confirmedAt == nil ? "En attente" : "Confirmee")
+            Section("Invitation envoyée") {
+                DetailRow(label: "Statut", value: row.outing.confirmedAt == nil ? "En attente" : "Confirmée")
                 if let location = row.outing.location, !location.isEmpty {
-                    DetailRow(label: "Lieu", value: location)
+                    DetailLocationRow(location: location)
                 }
                 if let note = row.outing.note, !note.isEmpty {
                     DetailRow(label: "Note", value: note)
@@ -1147,7 +1230,7 @@ private struct AgendaBlockDetailSheet: View {
                 ForEach(row.participants) { participant in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text(participant.profile?.username ?? "Invite")
+                            Text(participant.profile?.username ?? "Invité")
                             Spacer()
                             Text(participant.participant.response.agendaLabel)
                                 .font(.caption.weight(.bold))
@@ -1167,7 +1250,7 @@ private struct AgendaBlockDetailSheet: View {
                                 }
                             } label: {
                                 Label(
-                                    isReminded(participant) ? "Relance envoyee" : "Relancer",
+                                    isReminded(participant) ? "Relance envoyée" : "Relancer",
                                     systemImage: "bell"
                                 )
                                 .font(.caption.weight(.semibold))
@@ -1185,7 +1268,7 @@ private struct AgendaBlockDetailSheet: View {
                 if let title = busyEvent.title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     DetailRow(label: "Ce qu'il fait", value: title)
                 } else {
-                    DetailRow(label: "Ce qu'il fait", value: "Detail non partage")
+                    DetailRow(label: "Ce qu'il fait", value: "Détail non partagé")
                 }
             }
         case .generic:
@@ -1198,7 +1281,7 @@ private struct AgendaBlockDetailSheet: View {
         switch block.details {
         case .ownEvent(let event):
             Section {
-                Button("Supprimer l'indisponibilite", role: .destructive) {
+                Button("Supprimer l'indisponibilité", role: .destructive) {
                     Task {
                         await dataStore.deleteEvent(event)
                         dismissSheet()
@@ -1206,7 +1289,7 @@ private struct AgendaBlockDetailSheet: View {
                 }
             }
         case .receivedOuting(let row):
-            Section("Reponse") {
+            Section("Réponse") {
                 Button("Accepter") {
                     Task {
                         await dataStore.respondToOuting(row.outing, response: .accepted)
@@ -1280,6 +1363,21 @@ private struct DetailRow: View {
     }
 }
 
+private struct DetailLocationRow: View {
+    let location: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Lieu")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+            LocationLink(location: location)
+                .font(.body)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 private struct AddEventView: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @Environment(\.dismiss) private var dismiss
@@ -1289,6 +1387,7 @@ private struct AddEventView: View {
     @State private var endsAt: Date
     @State private var color = "#6366f1"
     @State private var location = ""
+    @State private var locationCoordinate: CLLocationCoordinate2D?
     @State private var note = ""
     @State private var selectedFriendIds = Set<String>()
     @State private var selectedGroupId: String?
@@ -1309,10 +1408,15 @@ private struct AddEventView: View {
                 }
                 .pickerStyle(.segmented)
 
-                Section("Creneau") {
+                Section("Créneau") {
                     TextField("Titre", text: $title)
-                    DatePicker("Debut", selection: $startsAt)
-                    DatePicker("Fin", selection: $endsAt)
+                    DatePicker("Début", selection: $startsAt)
+                        .onChange(of: startsAt) { _, newValue in
+                            if endsAt <= newValue {
+                                endsAt = Calendar.current.date(byAdding: .hour, value: 1, to: newValue) ?? newValue
+                            }
+                        }
+                    DatePicker("Fin", selection: $endsAt, in: startsAt...)
                 }
 
                 if kind == .busy {
@@ -1325,14 +1429,14 @@ private struct AddEventView: View {
                         }
                     }
                 } else {
-                    Section("Details") {
-                        TextField("Lieu", text: $location)
+                    Section("Détails") {
+                        LocationSearchField(location: $location, coordinate: $locationCoordinate)
                         TextField("Note", text: $note, axis: .vertical)
                     }
 
-                    Section("Invites amis") {
+                    Section("Invités amis") {
                         if dataStore.acceptedFriends.isEmpty {
-                            Text("Aucun ami accepte")
+                            Text("Aucun ami accepté")
                                 .foregroundStyle(.secondary)
                         } else {
                             TextField("Rechercher un ami", text: $friendSearchQuery)
@@ -1360,13 +1464,13 @@ private struct AddEventView: View {
                             }
 
                             if filteredAcceptedFriends.isEmpty {
-                                Text("Aucun ami trouve")
+                                Text("Aucun ami trouvé")
                                     .foregroundStyle(.secondary)
                             }
                         }
                     }
 
-                    Section("Invites groupe") {
+                    Section("Invités groupe") {
                         if dataStore.groups.isEmpty {
                             Text("Aucun groupe disponible")
                                 .foregroundStyle(.secondary)
@@ -1394,7 +1498,7 @@ private struct AddEventView: View {
                     }
                 }
             }
-            .navigationTitle(kind == .busy ? "Indisponibilite" : "Invitation")
+            .navigationTitle(kind == .busy ? "Indisponibilité" : "Invitation")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
@@ -1425,10 +1529,10 @@ private struct AddEventView: View {
                 switch kind {
                 case .busy:
                     if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        title = "Occupe"
+                        title = "Occupé"
                     }
                 case .outing:
-                    if title == "Occupe" {
+                    if title == "Occupé" {
                         title = ""
                     }
                 }
@@ -1557,8 +1661,8 @@ private extension OutingResponse {
     var agendaLabel: String {
         switch self {
         case .pending: "En attente"
-        case .accepted: "Acceptee"
-        case .declined: "Refusee"
+        case .accepted: "Acceptée"
+        case .declined: "Refusée"
         }
     }
 

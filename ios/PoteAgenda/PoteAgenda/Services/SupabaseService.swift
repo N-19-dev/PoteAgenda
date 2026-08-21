@@ -107,7 +107,7 @@ final class SupabaseService {
             session: session,
             body: NewCalendarSource(user_id: session.user.id, label: label, kind: kind, device_calendar_id: deviceCalendarId)
         )
-        guard let source = created.first else { throw AppError.message("Creation du calendrier impossible.") }
+        guard let source = created.first else { throw AppError.message("Création du calendrier impossible.") }
         return source
     }
 
@@ -503,8 +503,8 @@ final class SupabaseService {
     }
 
     /// Derniers messages (toutes sorties confondues) qui mentionnent l'utilisateur courant.
-    /// Sert uniquement de base a la notification locale "tu as ete mentionne" (cf. AppDataStore) ;
-    /// la RLS applique deja la fenetre de retention, donc un message expire n'y apparait plus.
+    /// Sert uniquement de base à la notification locale "tu as été mentionné" (cf. AppDataStore) ;
+    /// la RLS applique déjà la fenêtre de rétention, donc un message expiré n'y apparaît plus.
     func outingMentionMessages(session: AuthSession, outingIds: [String]) async throws -> [OutingMessage] {
         guard !outingIds.isEmpty else { return [] }
         return try await request(
@@ -648,7 +648,7 @@ final class SupabaseService {
             throw error
         }
         guard let http = response as? HTTPURLResponse else {
-            throw AppError.message("Reponse Supabase invalide.")
+            throw AppError.message("Réponse Supabase invalide.")
         }
         print("PoteAgenda Supabase response: \(http.statusCode) \(method) \(path)")
         guard (200..<300).contains(http.statusCode) else {

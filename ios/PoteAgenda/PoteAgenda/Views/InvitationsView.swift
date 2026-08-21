@@ -48,7 +48,7 @@ private struct ReceivedInvitationsSection: View {
 
     var body: some View {
         if outings.isEmpty {
-            EmptyStateView(title: "Aucune invitation recue", systemImage: "envelope.open")
+            EmptyStateView(title: "Aucune invitation reçue", systemImage: "envelope.open")
         } else {
             ForEach(outings) { row in
                 NavigationLink {
@@ -71,7 +71,7 @@ private struct SentInvitationsSection: View {
 
     var body: some View {
         if outings.isEmpty {
-            EmptyStateView(title: "Aucune invitation envoyee", systemImage: "paperplane")
+            EmptyStateView(title: "Aucune invitation envoyée", systemImage: "paperplane")
         } else {
             ForEach(outings) { row in
                 NavigationLink {
@@ -172,7 +172,7 @@ private struct SentInvitationDetailView: View {
             Section {
                 InvitationHeaderView(
                     outing: row.outing,
-                    status: row.outing.confirmedAt == nil ? "Non confirme" : "Confirme",
+                    status: row.outing.confirmedAt == nil ? "Non confirmé" : "Confirmé",
                     statusStyle: row.outing.confirmedAt == nil ? .neutral : .accepted
                 )
             }
@@ -209,7 +209,7 @@ private struct SentInvitationDetailView: View {
                                 }
                             } label: {
                                 Label(
-                                    recentlyReminded(participantRow.participant.remindedAt) ? "Relance envoyee" : "Relancer",
+                                    recentlyReminded(participantRow.participant.remindedAt) ? "Relance envoyée" : "Relancer",
                                     systemImage: "bell"
                                 )
                                 .font(.caption.weight(.semibold))
@@ -235,7 +235,7 @@ private struct SentInvitationDetailView: View {
                 OutingDiscussionSection(outing: row.outing)
             }
         }
-        .navigationTitle("Invitation envoyee")
+        .navigationTitle("Invitation envoyée")
         .poteInlineNavigationTitle()
     }
 }
@@ -263,7 +263,7 @@ private struct InvitationInfoSection: View {
     let outing: Outing
 
     var body: some View {
-        Section("Details") {
+        Section("Détails") {
             Label {
                 InvitationDateText(outing: outing)
             } icon: {
@@ -271,7 +271,7 @@ private struct InvitationInfoSection: View {
             }
 
             if let location = outing.location, !location.isEmpty {
-                Label(location, systemImage: "mappin.and.ellipse")
+                LocationLink(location: location)
             }
 
             if let note = outing.note, !note.isEmpty {
@@ -391,7 +391,7 @@ private extension SentOutingRow {
         let invited = participants.count
         let accepted = participants.filter { $0.participant.response == .accepted }.count
         let pending = participants.filter { $0.participant.response == .pending }.count
-        return "\(accepted)/\(invited) acceptes, \(pending) attente"
+        return "\(accepted)/\(invited) acceptés, \(pending) attente"
     }
 }
 
@@ -511,7 +511,7 @@ struct OutingDiscussionSection: View {
                 }
 
                 HStack(alignment: .bottom, spacing: 8) {
-                    TextField("Ecrire un message…", text: $newMessage, axis: .vertical)
+                    TextField("Écrire un message…", text: $newMessage, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1...4)
                     Button(action: send) {

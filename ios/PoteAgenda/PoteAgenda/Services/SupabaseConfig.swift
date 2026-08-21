@@ -8,7 +8,7 @@ struct SupabaseConfig {
         let plistURL = Bundle.main.url(forResource: "Supabase", withExtension: "plist")
             ?? Bundle.main.url(forResource: "Supabase", withExtension: "plist", subdirectory: "Resources")
         guard let plistURL else {
-            throw AppError.message("Ajoute PoteAgenda/Resources/Supabase.plist avec les cles Supabase.")
+            throw AppError.message("Ajoute PoteAgenda/Resources/Supabase.plist avec les clés Supabase.")
         }
         let data = try Data(contentsOf: plistURL)
         guard

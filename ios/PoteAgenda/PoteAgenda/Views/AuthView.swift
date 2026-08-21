@@ -18,7 +18,7 @@ struct AuthView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("PoteAgenda")
                         .font(.largeTitle.bold())
-                    Text("Trouve un creneau libre sans exposer ton agenda.")
+                    Text("Trouve un créneau libre sans exposer ton agenda.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -49,7 +49,7 @@ struct AuthView: View {
                         }
                     }
                 } label: {
-                    Label(mode == .login ? "Se connecter" : "Creer le compte", systemImage: "arrow.right")
+                    Label(mode == .login ? "Se connecter" : "Créer le compte", systemImage: "arrow.right")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

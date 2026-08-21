@@ -21,6 +21,27 @@ final class AppDataStore: ObservableObject {
     @Published var calendarSources: [CalendarSource] = []
     @Published var deviceCalendars: [EKCalendar] = []
     @Published var deviceCalendarAuthorizationStatus: EKAuthorizationStatus = EKEventStore.authorizationStatus(for: .event)
+    @Published var travelMode: TravelMode {
+        didSet {
+            UserDefaults.standard.set(travelMode.rawValue, forKey: Self.travelModeDefaultsKey)
+            Task { await scheduleDepartureReminders() }
+        }
+    }
+    /// Opt-in explicite, distinct de l'autorisation système : même avec la
+    /// position accordée à iOS, l'utilisateur peut couper la fonctionnalité
+    /// sans révoquer l'autorisation.
+    @Published var departureRemindersEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(departureRemindersEnabled, forKey: Self.departureRemindersEnabledDefaultsKey)
+            if departureRemindersEnabled {
+                LocationService.shared.requestAuthorizationIfNeeded()
+            }
+            Task { await scheduleDepartureReminders() }
+        }
+    }
+
+    private static let travelModeDefaultsKey = "poteagenda.travelMode"
+    private static let departureRemindersEnabledDefaultsKey = "poteagenda.departureRemindersEnabled"
 
     private let service: SupabaseService
     private let session: AuthSession
@@ -33,6 +54,9 @@ final class AppDataStore: ObservableObject {
     init(service: SupabaseService, session: AuthSession) {
         self.service = service
         self.session = session
+        let storedTravelMode = UserDefaults.standard.string(forKey: Self.travelModeDefaultsKey).flatMap(TravelMode.init(rawValue:))
+        self.travelMode = storedTravelMode ?? .automobile
+        self.departureRemindersEnabled = UserDefaults.standard.bool(forKey: Self.departureRemindersEnabledDefaultsKey)
     }
 
     func refreshAll() async {
@@ -61,7 +85,7 @@ final class AppDataStore: ObservableObject {
             } catch {
                 if isCancellation(error) { throw error }
                 friendsBusyEvents = []
-                errorMessage = "Impossible de charger les indisponibilites des amis: \(error.localizedDescription)"
+                errorMessage = "Impossible de charger les indisponibilités des amis : \(error.localizedDescription)"
             }
             if let selectedGroup {
                 do {
@@ -181,7 +205,7 @@ final class AppDataStore: ObservableObject {
             } catch {
                 if isCancellation(error) { throw error }
                 friendsBusyEvents = []
-                errorMessage = "Impossible de charger les indisponibilites des amis: \(error.localizedDescription)"
+                errorMessage = "Impossible de charger les indisponibilités des amis : \(error.localizedDescription)"
             }
         }
     }
@@ -275,12 +299,60 @@ final class AppDataStore: ObservableObject {
             outings = nextOutings
             sentOutings = nextSentOutings
             await refreshMentions()
+            await scheduleDepartureReminders()
         }
     }
 
-    /// Notification locale "best effort" quand l'utilisateur a ete tague dans un
+    func requestLocationAuthorizationIfNeeded() {
+        LocationService.shared.requestAuthorizationIfNeeded()
+    }
+
+    /// Rappel local "pars dans 15 min" calculé depuis le temps de trajet estimé
+    /// (position actuelle -> adresse de la sortie). Best effort : sans
+    /// autorisation de localisation, sans adresse résolvable ou sans trajet
+    /// calculable, on ne programme simplement rien.
+    private func scheduleDepartureReminders() async {
+        guard departureRemindersEnabled else {
+            await InvitationNotificationService.shared.pruneDepartureReminders(keeping: [])
+            return
+        }
+
+        let eligibleOutings = departureReminderEligibleOutings()
+        await InvitationNotificationService.shared.pruneDepartureReminders(keeping: Set(eligibleOutings.map(\.id)))
+        guard !eligibleOutings.isEmpty else { return }
+
+        guard let coordinate = try? await LocationService.shared.currentCoordinate() else { return }
+
+        for outing in eligibleOutings {
+            guard let location = outing.location, !location.isEmpty else { continue }
+            guard let startsAt = DateHelpers.parse(outing.startsAt) else { continue }
+            guard let travelTime = try? await TravelTimeEstimator.travelTime(from: coordinate, toAddress: location, mode: travelMode) else { continue }
+
+            let notifyAt = startsAt.addingTimeInterval(-travelTime - 15 * 60)
+            await InvitationNotificationService.shared.scheduleDepartureReminder(
+                for: outing,
+                notifyAt: notifyAt,
+                minutesBeforeDeparture: 15
+            )
+        }
+    }
+
+    private func departureReminderEligibleOutings() -> [Outing] {
+        let now = Date()
+        let acceptedReceived = outings.filter { $0.response == .accepted }.map(\.outing)
+        let owned = sentOutings.map(\.outing)
+
+        return (acceptedReceived + owned).filter { outing in
+            guard outing.cancelledAt == nil else { return false }
+            guard let location = outing.location, !location.isEmpty else { return false }
+            guard let startsAt = DateHelpers.parse(outing.startsAt) else { return false }
+            return startsAt > now
+        }
+    }
+
+    /// Notification locale "best effort" quand l'utilisateur a été tagué dans un
     /// message : comme pour les invitations/relances, il n'y a pas de push serveur,
-    /// donc ca ne se declenche qu'aux moments ou l'app rafraichit deja les sorties
+    /// donc ça ne se déclenche qu'aux moments où l'app rafraîchit déjà les sorties
     /// (lancement, ouverture de l'onglet Invitations, pull-to-refresh).
     private func refreshMentions() async {
         let outingIds = Set(outings.map(\.outing.id) + sentOutings.map(\.outing.id))
@@ -531,12 +603,38 @@ final class InvitationNotificationService: NSObject, UNUserNotificationCenterDel
 
     func notifyMention(messageId: String, outingTitle: String, senderName: String?, body: String) async {
         await requestAuthorization()
-        let title = senderName.map { "\($0) t'a mentionne dans \(outingTitle)" }
-            ?? "Tu as ete mentionne dans \(outingTitle)"
+        let title = senderName.map { "\($0) t'a mentionné dans \(outingTitle)" }
+            ?? "Tu as été mentionné dans \(outingTitle)"
         await schedule(identifier: "outing-mention-\(messageId)", title: title, body: body)
     }
 
-    private func schedule(identifier: String, title: String, body: String) async {
+    private static let departureReminderPrefix = "outing-departure-"
+
+    /// Remplace le rappel de départ déjà programmé pour cette sortie (même
+    /// identifiant = `add` écrase l'ancien), pour refléter un trajet
+    /// recalculé à chaque rafraîchissement.
+    func scheduleDepartureReminder(for outing: Outing, notifyAt: Date, minutesBeforeDeparture: Int) async {
+        guard notifyAt.timeIntervalSinceNow > 0 else { return }
+        await requestAuthorization()
+        await schedule(
+            identifier: "\(Self.departureReminderPrefix)\(outing.id)",
+            title: "C'est bientôt l'heure de partir",
+            body: "Pars dans \(minutesBeforeDeparture) min pour arriver à l'heure à \(outing.title).",
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: notifyAt.timeIntervalSinceNow, repeats: false)
+        )
+    }
+
+    func pruneDepartureReminders(keeping outingIds: Set<String>) async {
+        let pending = await center.pendingNotificationRequests()
+        let staleIds = pending
+            .map(\.identifier)
+            .filter { $0.hasPrefix(Self.departureReminderPrefix) }
+            .filter { !outingIds.contains(String($0.dropFirst(Self.departureReminderPrefix.count))) }
+        guard !staleIds.isEmpty else { return }
+        center.removePendingNotificationRequests(withIdentifiers: staleIds)
+    }
+
+    private func schedule(identifier: String, title: String, body: String, trigger: UNNotificationTrigger? = nil) async {
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
 
@@ -545,7 +643,7 @@ final class InvitationNotificationService: NSObject, UNUserNotificationCenterDel
         content.body = body
         content.sound = .default
 
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         try? await center.add(request)
     }
 }

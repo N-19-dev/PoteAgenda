@@ -96,7 +96,7 @@ enum DateHelpers {
 
     static func displayDateTimeString(_ value: String) -> String {
         guard let date = parse(value) else { return value }
-        return "\(displayDateString(date)) a \(displayTimeString(date))"
+        return "\(displayDateString(date)) à \(displayTimeString(date))"
     }
 
     static func weekdayString(_ date: Date) -> String {

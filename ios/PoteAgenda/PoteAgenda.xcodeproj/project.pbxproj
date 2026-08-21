@@ -14,6 +14,7 @@
 		101000000000000000000005 /* Services/SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000005 /* Services/SupabaseService.swift */; };
 		101000000000000000000017 /* Services/EventKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000022 /* Services/EventKitService.swift */; };
 		101000000000000000000023 /* Services/KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000023 /* Services/KeychainService.swift */; };
+		101000000000000000000024 /* Services/LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000024 /* Services/LocationService.swift */; };
 		101000000000000000000006 /* ViewModels/SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000006 /* ViewModels/SessionStore.swift */; };
 		101000000000000000000007 /* ViewModels/AppDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000007 /* ViewModels/AppDataStore.swift */; };
 		101000000000000000000008 /* Views/RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102000000000000000000008 /* Views/RootView.swift */; };
@@ -36,6 +37,7 @@
 		102000000000000000000005 /* Services/SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/SupabaseService.swift; sourceTree = "<group>"; };
 		102000000000000000000022 /* Services/EventKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/EventKitService.swift; sourceTree = "<group>"; };
 		102000000000000000000023 /* Services/KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/KeychainService.swift; sourceTree = "<group>"; };
+		102000000000000000000024 /* Services/LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/LocationService.swift; sourceTree = "<group>"; };
 		102000000000000000000006 /* ViewModels/SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/SessionStore.swift; sourceTree = "<group>"; };
 		102000000000000000000007 /* ViewModels/AppDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/AppDataStore.swift; sourceTree = "<group>"; };
 		102000000000000000000008 /* Views/RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RootView.swift; sourceTree = "<group>"; };
@@ -83,6 +85,7 @@
 				102000000000000000000005 /* Services/SupabaseService.swift */,
 				102000000000000000000022 /* Services/EventKitService.swift */,
 				102000000000000000000023 /* Services/KeychainService.swift */,
+				102000000000000000000024 /* Services/LocationService.swift */,
 				102000000000000000000006 /* ViewModels/SessionStore.swift */,
 				102000000000000000000007 /* ViewModels/AppDataStore.swift */,
 				102000000000000000000008 /* Views/RootView.swift */,
@@ -187,6 +190,7 @@
 				101000000000000000000005 /* Services/SupabaseService.swift in Sources */,
 				101000000000000000000017 /* Services/EventKitService.swift in Sources */,
 				101000000000000000000023 /* Services/KeychainService.swift in Sources */,
+				101000000000000000000024 /* Services/LocationService.swift in Sources */,
 				101000000000000000000006 /* ViewModels/SessionStore.swift in Sources */,
 				101000000000000000000007 /* ViewModels/AppDataStore.swift in Sources */,
 				101000000000000000000008 /* Views/RootView.swift in Sources */,

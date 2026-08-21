@@ -43,7 +43,7 @@ final class SessionStore: ObservableObject {
                 session = created
                 persist()
             } else {
-                errorMessage = "Compte cree. Verifie ton email avant de te connecter."
+                errorMessage = "Compte créé. Vérifie ton email avant de te connecter."
             }
         }
     }

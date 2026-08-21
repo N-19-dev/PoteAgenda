@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>PoteAgenda a besoin d'acceder a tes calendriers pour importer tes evenements et savoir quand tu es occupe.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PoteAgenda utilise ta position pour calculer le temps de trajet jusqu'au lieu d'une sortie et te rappeler quand partir.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

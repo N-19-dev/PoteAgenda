@@ -168,7 +168,7 @@ private struct BusyTimelineView: View {
 
     var body: some View {
         if events.isEmpty {
-            Text("Tout le monde semble libre sur cette periode.")
+            Text("Tout le monde semble libre sur cette période.")
                 .foregroundStyle(.secondary)
         } else {
             ForEach(Array(events.enumerated()), id: \.offset) { _, event in
@@ -176,7 +176,7 @@ private struct BusyTimelineView: View {
                     Image(systemName: "clock.fill")
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading) {
-                        Text(event.title ?? "Occupe")
+                        Text(event.title ?? "Occupé")
                         EventTimeText(start: event.startAt, end: event.endAt)
                     }
                 }
@@ -210,7 +210,7 @@ private struct CreateGroupView: View {
                     Button("Annuler") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Creer") {
+                    Button("Créer") {
                         Task {
                             await dataStore.createGroup(
                                 name: name,

@@ -34,6 +34,9 @@ struct MainTabView: View {
         .environmentObject(dataStore)
         .task {
             await dataStore.requestNotificationAuthorization()
+            if dataStore.departureRemindersEnabled {
+                dataStore.requestLocationAuthorizationIfNeeded()
+            }
             await dataStore.refreshAll()
         }
         .alert("Erreur", isPresented: Binding(

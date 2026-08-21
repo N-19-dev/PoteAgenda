@@ -4,14 +4,15 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var sessionStore: SessionStore
     @EnvironmentObject private var dataStore: AppDataStore
+    @ObservedObject private var locationService = LocationService.shared
     @State private var showDeleteConfirmation = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section("Compte") {
-                    Text(sessionStore.session?.user.email ?? "Connecte")
-                    Button("Se deconnecter", role: .destructive) {
+                    Text(sessionStore.session?.user.email ?? "Connecté")
+                    Button("Se déconnecter", role: .destructive) {
                         Task { await sessionStore.signOut() }
                     }
                     Button("Supprimer mon compte", role: .destructive) {
@@ -21,9 +22,29 @@ struct SettingsView: View {
 
                 connectedCalendarsSection
 
+                Section {
+                    Text("PoteAgenda peut utiliser ta position pour estimer le temps de trajet jusqu'au lieu d'une sortie et te prévenir 15 minutes avant l'heure à laquelle il faut partir. Elle n'est jamais partagée avec tes amis ni stockée sur le serveur, uniquement utilisée sur ton appareil au moment du calcul.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Toggle("Utiliser ma position pour les rappels de départ", isOn: $dataStore.departureRemindersEnabled)
+
+                    if dataStore.departureRemindersEnabled {
+                        locationAuthorizationRow
+
+                        Picker("Mode de trajet", selection: $dataStore.travelMode) {
+                            ForEach(TravelMode.allCases) { mode in
+                                Label(mode.title, systemImage: mode.systemImage).tag(mode)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Trajets")
+                }
+
                 Section("Backend") {
                     Text("Supabase + RLS")
-                    Text("Les amis et groupes ne recuperent que les creneaux autorises par les politiques existantes.")
+                    Text("Les amis et groupes ne récupèrent que les créneaux autorisés par les politiques existantes.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -34,7 +55,7 @@ struct SettingsView: View {
                 await dataStore.refreshCalendarSources()
             }
             .confirmationDialog(
-                "Supprimer definitivement ton compte ?",
+                "Supprimer définitivement ton compte ?",
                 isPresented: $showDeleteConfirmation,
                 titleVisibility: .visible
             ) {
@@ -43,7 +64,7 @@ struct SettingsView: View {
                 }
                 Button("Annuler", role: .cancel) {}
             } message: {
-                Text("Toutes tes donnees (agenda, amis, groupes, sorties) seront supprimees. Cette action est irreversible.")
+                Text("Toutes tes données (agenda, amis, groupes, sorties) seront supprimées. Cette action est irréversible.")
             }
         }
     }
@@ -73,7 +94,7 @@ struct SettingsView: View {
                     }
                 }
             case .denied, .restricted:
-                Text("Acces refuse. Autorise PoteAgenda dans Reglages > Confidentialite > Calendriers.")
+                Text("Accès refusé. Autorise PoteAgenda dans Réglages > Confidentialité > Calendriers.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             default:
@@ -84,9 +105,28 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text("Calendriers connectes")
+            Text("Calendriers connectés")
         } footer: {
-            Text("Les evenements importes restent prives : seuls tes creneaux occupes/libres sont visibles par tes amis et groupes, jamais leur titre (sauf partage explicite).")
+            Text("Les événements importés restent privés : seuls tes créneaux occupés/libres sont visibles par tes amis et groupes, jamais leur titre (sauf partage explicite).")
+        }
+    }
+
+    @ViewBuilder
+    private var locationAuthorizationRow: some View {
+        switch locationService.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            Label("Position autorisée", systemImage: "location.fill")
+                .foregroundStyle(.secondary)
+        case .denied, .restricted:
+            Text("Position refusée. Autorise PoteAgenda dans Réglages > Confidentialité > Position pour activer les rappels de départ.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        default:
+            Button {
+                locationService.requestAuthorizationIfNeeded()
+            } label: {
+                Label("Autoriser la position", systemImage: "location")
+            }
         }
     }
 
@@ -128,7 +168,7 @@ private struct CalendarSourceRow: View {
     }
 
     private var lastSyncedLabel: String {
-        guard let lastSyncedAt = source.lastSyncedAt else { return "Jamais synchronise" }
-        return "Synchronise le \(DateHelpers.displayDateTimeString(lastSyncedAt))"
+        guard let lastSyncedAt = source.lastSyncedAt else { return "Jamais synchronisé" }
+        return "Synchronisé le \(DateHelpers.displayDateTimeString(lastSyncedAt))"
     }
 }

@@ -33,7 +33,7 @@ final class EventKitService {
                 }
             }
         }
-        guard granted else { throw AppError.message("Acces au calendrier refuse. Autorise PoteAgenda dans Reglages > Confidentialite > Calendriers.") }
+        guard granted else { throw AppError.message("Accès au calendrier refusé. Autorise PoteAgenda dans Réglages > Confidentialité > Calendriers.") }
         return granted
     }
 
@@ -53,7 +53,7 @@ final class EventKitService {
         return store.events(matching: predicate).compactMap { event in
             guard let start = event.startDate, let end = event.endDate, start < end else { return nil }
             let trimmedTitle = event.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let title = (trimmedTitle?.isEmpty == false) ? trimmedTitle! : "Occupe"
+            let title = (trimmedTitle?.isEmpty == false) ? trimmedTitle! : "Occupé"
             let baseId = event.eventIdentifier ?? UUID().uuidString
             return CalendarEventInputPayload(
                 title: title,
