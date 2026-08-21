@@ -189,6 +189,33 @@ struct AgendaView: View {
                 )
             }
 
+        // Invitations en attente de réponse chez un ami : pas une
+        // indisponibilité confirmée, juste un signal qu'il pourrait le
+        // devenir. Volontairement distinct de "Occupé" (couleur + libellé).
+        //
+        // On exclut les créneaux qui correspondent à une invitation que je
+        // connais déjà en détail (envoyée par moi, ou reçue de cet ami) :
+        // sinon le bloc "sollicité(e)" (translucide) se superpose pile sur
+        // mon propre bloc d'invitation (titre visible, à juste titre car
+        // c'est la mienne) et laisse voir le titre en transparence — ça
+        // donnait l'impression que le bloc "sollicité" révélait le titre.
+        blocks += dataStore.friendsPendingOutings
+            .filter { effectiveSelectedFriendIds.contains($0.userId) }
+            .filter { !isKnownOutingSlot(friendId: $0.userId, startAt: $0.startAt, endAt: $0.endAt) }
+            .map { pending in
+                AgendaBlock(
+                    id: "friend-pending-\(pending.userId)-\(pending.startAt)",
+                    title: friendName(for: pending.userId),
+                    subtitle: "Sollicité(e)",
+                    startAt: pending.startAt,
+                    endAt: pending.endAt,
+                    color: "#f97316",
+                    ownEvent: nil,
+                    style: .friendPending,
+                    details: .friendPending(pending, friendName(for: pending.userId))
+                )
+            }
+
         if dataStore.agendaShowingGroupBusyEvents {
             blocks += dataStore.busyEvents.map { busyEvent in
                 AgendaBlock(
@@ -206,6 +233,25 @@ struct AgendaView: View {
         }
 
         return blocks
+    }
+
+    /// true si ce créneau (ami, horaires) correspond à une invitation dont
+    /// je connais déjà le titre : une que j'ai envoyée à cet ami, ou une que
+    /// j'ai reçue de sa part. Sert à ne pas superposer le bloc ambiant
+    /// "sollicité(e)" sur mon propre bloc d'invitation.
+    private func isKnownOutingSlot(friendId: String, startAt: String, endAt: String) -> Bool {
+        let sentMatch = dataStore.sentOutings.contains { row in
+            row.outing.startsAt == startAt
+                && row.outing.endsAt == endAt
+                && row.participants.contains { $0.participant.userId == friendId }
+        }
+        if sentMatch { return true }
+
+        return dataStore.outings.contains { row in
+            row.outing.creatorId == friendId
+                && row.outing.startsAt == startAt
+                && row.outing.endsAt == endAt
+        }
     }
 
     private func friendName(for userId: String) -> String {
@@ -552,6 +598,13 @@ private struct AgendaWeekGrid: View {
     private let hourRange = 7...23
     private let hourHeight: CGFloat = 64
     private let hourRailWidth: CGFloat = 44
+    /// Hauteur minimale pour qu'un bloc "ami" reste lisible même pour un
+    /// événement très court.
+    private static let minReadableHeight: CGFloat = 30
+    /// En dessous de cette hauteur, un seul mot tient : on bascule le bloc
+    /// ami en rendu compact (padding réduit, une seule ligne) plutôt que de
+    /// laisser le texte se faire couper.
+    private static let compactTextThreshold: CGFloat = 34
 
     var body: some View {
         GeometryReader { proxy in
@@ -601,9 +654,13 @@ private struct AgendaWeekGrid: View {
                             .frame(width: 34, height: 34)
                             .background(dayBadgeBackground(for: day))
                             .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: selectedDay) ? .white : .primary)
-                        if friendBusyCount(on: day) > 0 {
+                        if friendBusyPresent(on: day) {
                             Capsule()
                                 .fill(Color.secondary.opacity(0.55))
+                                .frame(width: 24, height: 4)
+                        } else if friendPendingPresent(on: day) {
+                            Capsule()
+                                .fill(Color(hex: "#f97316").opacity(0.7))
                                 .frame(width: 24, height: 4)
                         } else {
                             Color.clear.frame(width: 24, height: 4)
@@ -651,17 +708,25 @@ private struct AgendaWeekGrid: View {
             let positionedBlocks = positionedBlocks(dayWidth: dayWidth)
 
             ForEach(positionedFriendBusyBlocks(positionedBlocks)) { positioned in
+                // Un événement court (ex. 10-15 min) est remonté à une
+                // hauteur minimale lisible (voir minReadableHeight) ; sans
+                // recentrer verticalement, le bloc ne s'agrandissait que
+                // vers le bas et venait chevaucher/masquer le texte du
+                // créneau suivant. On centre donc l'agrandissement sur
+                // l'horaire réel.
+                let flooredHeight = max(positioned.height, Self.minReadableHeight)
+                let verticalGrowth = flooredHeight - positioned.height
                 Button {
                     onSelectBlock(positioned.block)
                 } label: {
-                    FriendBusyOverlayBlock(block: positioned.block)
+                    FriendBusyOverlayBlock(block: positioned.block, compact: flooredHeight < Self.compactTextThreshold)
                 }
                 .buttonStyle(.plain)
-                .frame(width: max(dayWidth - 10, 36), height: max(positioned.height, 30))
+                .frame(width: max(dayWidth - 10, 36), height: flooredHeight)
                 .contentShape(RoundedRectangle(cornerRadius: 7))
                 .offset(
                     x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 5,
-                    y: positioned.top
+                    y: positioned.top - verticalGrowth / 2
                 )
                 .zIndex(4)
             }
@@ -712,18 +777,42 @@ private struct AgendaWeekGrid: View {
         }
     }
 
+    private func isFriendOverlayStyle(_ style: AgendaBlockStyle) -> Bool {
+        style == .friendBusy || style == .friendPending
+    }
+
     private func positionedFriendBusyBlocks(_ positionedBlocks: [PositionedAgendaBlock]) -> [PositionedAgendaBlock] {
-        positionedBlocks.filter { $0.block.style == .friendBusy }
+        positionedBlocks.filter { isFriendOverlayStyle($0.block.style) }
     }
 
     private func positionedEventBlocks(_ positionedBlocks: [PositionedAgendaBlock]) -> [PositionedAgendaBlock] {
-        positionedBlocks.filter { $0.block.style != .friendBusy }
+        positionedBlocks.filter { !isFriendOverlayStyle($0.block.style) }
+    }
+
+    /// true si au moins un ami est réellement occupé ce jour-là (par
+    /// opposition à seulement "en attente" d'une invitation).
+    private func friendBusyPresent(on day: Date) -> Bool {
+        let bounds = DateHelpers.dayBounds(for: day)
+        return blocks.contains { block in
+            guard block.style == .friendBusy else { return false }
+            guard let start = DateHelpers.parse(block.startAt), let end = DateHelpers.parse(block.endAt) else { return false }
+            return start < bounds.end && end > bounds.start
+        }
+    }
+
+    private func friendPendingPresent(on day: Date) -> Bool {
+        let bounds = DateHelpers.dayBounds(for: day)
+        return blocks.contains { block in
+            guard block.style == .friendPending else { return false }
+            guard let start = DateHelpers.parse(block.startAt), let end = DateHelpers.parse(block.endAt) else { return false }
+            return start < bounds.end && end > bounds.start
+        }
     }
 
     private func friendBusyCount(on day: Date) -> Int {
         let bounds = DateHelpers.dayBounds(for: day)
         return blocks.filter { block in
-            guard block.style == .friendBusy else { return false }
+            guard isFriendOverlayStyle(block.style) else { return false }
             guard let start = DateHelpers.parse(block.startAt), let end = DateHelpers.parse(block.endAt) else { return false }
             return start < bounds.end && end > bounds.start
         }.count
@@ -834,28 +923,49 @@ private struct AgendaEventBlockView: View {
 
 private struct FriendBusyOverlayBlock: View {
     let block: AgendaBlock
+    /// true pour un créneau trop court pour deux lignes : une seule ligne,
+    /// police plus petite et padding réduit, plutôt que de laisser le texte
+    /// se faire tronquer/rétrécir jusqu'à devenir illisible.
+    var compact: Bool = false
+
+    private var isPending: Bool { block.style == .friendPending }
+    private var borderAccentColor: Color { isPending ? Color(hex: "#f97316") : .secondary }
 
     var body: some View {
         RoundedRectangle(cornerRadius: 7)
-            .fill(Color.poteBusyOther)
+            .fill(isPending ? Color.potePendingOther : Color.poteBusyOther)
             .overlay {
-                Stripes()
-                    .stroke(Color.secondary.opacity(0.7), lineWidth: 1.4)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                // Les hachures signalent une vraie indisponibilité ; une
+                // invitation en attente n'en est pas une, donc pas de
+                // hachures, juste une bordure en pointillés.
+                if !isPending {
+                    Stripes()
+                        .stroke(Color.secondary.opacity(0.7), lineWidth: 1.4)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 7)
-                    .stroke(Color.secondary.opacity(0.55), lineWidth: 1)
+                    .stroke(borderAccentColor.opacity(isPending ? 0.5 : 0.55), style: StrokeStyle(lineWidth: isPending ? 1.4 : 1, dash: isPending ? [4, 3] : []))
             }
             .overlay(alignment: .topLeading) {
+                // Texte toujours en .secondary (jamais dans la teinte
+                // orange) pour rester lisible quel que soit le fond pâle
+                // en clair comme en sombre.
                 VStack(alignment: .leading, spacing: 2) {
                     Text(block.title)
-                        .font(.caption2.weight(.black))
+                        .font(compact ? .system(size: 9, weight: .black) : .caption2.weight(.black))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.65)
+                        .minimumScaleFactor(0.6)
+                    if isPending && !compact {
+                        Text("Sollicité(e)")
+                            .font(.caption2.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                    }
                 }
                 .foregroundStyle(.secondary)
-                .padding(5)
+                .padding(compact ? 3 : 5)
             }
     }
 }
@@ -1033,6 +1143,7 @@ private enum AgendaBlockDetails {
     case receivedOuting(ReceivedOutingRow)
     case sentOuting(SentOutingRow)
     case friendBusy(BusyEvent, String, String)
+    case friendPending(BusyEvent, String)
     case generic
 }
 
@@ -1040,10 +1151,11 @@ private enum AgendaBlockStyle: Equatable {
     case ownBusy
     case outing
     case friendBusy
+    case friendPending
 
     var foregroundStyle: Color {
         switch self {
-        case .friendBusy:
+        case .friendBusy, .friendPending:
             return .secondary
         case .ownBusy, .outing:
             return .white
@@ -1054,6 +1166,8 @@ private enum AgendaBlockStyle: Equatable {
         switch self {
         case .friendBusy:
             return Color.poteBusyOther
+        case .friendPending:
+            return Color.potePendingOther
         case .ownBusy, .outing:
             return Color(hex: block.color)
         }
@@ -1063,6 +1177,8 @@ private enum AgendaBlockStyle: Equatable {
         switch self {
         case .friendBusy:
             return Color.secondary.opacity(0.28)
+        case .friendPending:
+            return Color(hex: "#f97316").opacity(0.6)
         case .ownBusy, .outing:
             return Color(hex: block.color)
         }
@@ -1070,7 +1186,7 @@ private enum AgendaBlockStyle: Equatable {
 
     var zIndex: Double {
         switch self {
-        case .friendBusy:
+        case .friendBusy, .friendPending:
             return 3
         case .ownBusy:
             return 2
@@ -1096,11 +1212,13 @@ private struct AgendaBlockDetailSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .top, spacing: 10) {
                             Circle()
-                                .fill(block.style == .friendBusy ? Color.poteBusyOther : Color(hex: block.color))
+                                .fill(headerDotColor)
                                 .frame(width: 12, height: 12)
                                 .overlay {
                                     if block.style == .friendBusy {
                                         Circle().stroke(Color.secondary.opacity(0.55), lineWidth: 1)
+                                    } else if block.style == .friendPending {
+                                        Circle().stroke(Color(hex: "#f97316").opacity(0.75), lineWidth: 1)
                                     }
                                 }
                             VStack(alignment: .leading, spacing: 4) {
@@ -1172,6 +1290,8 @@ private struct AgendaBlockDetailSheet: View {
         switch block.details {
         case .friendBusy(_, let friendName, _):
             return "\(friendName) pas dispo"
+        case .friendPending(_, let friendName):
+            return "\(friendName) sollicité(e)"
         default:
             return block.title
         }
@@ -1179,10 +1299,21 @@ private struct AgendaBlockDetailSheet: View {
 
     private var headerSubtitle: String? {
         switch block.details {
-        case .friendBusy:
+        case .friendBusy, .friendPending:
             return nil
         default:
             return block.subtitle
+        }
+    }
+
+    private var headerDotColor: Color {
+        switch block.style {
+        case .friendBusy:
+            return Color.poteBusyOther
+        case .friendPending:
+            return Color(hex: "#f97316")
+        case .ownBusy, .outing:
+            return Color(hex: block.color)
         }
     }
 
@@ -1296,6 +1427,15 @@ private struct AgendaBlockDetailSheet: View {
                 } else {
                     DetailRow(label: "Ce qu'il fait", value: "Détail non partagé")
                 }
+            }
+        case .friendPending(_, let friendName):
+            Section("\(friendName) sollicité(e)") {
+                DetailRow(label: "Personne", value: friendName)
+                DetailRow(label: "Quand", value: block.dateRangeLabel)
+                DetailRow(label: "Statut", value: "Sollicité(e)")
+                Text("Pas encore indisponible : si \(friendName) confirme, ce créneau deviendra occupé.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         case .generic:
             EmptyView()
@@ -1762,6 +1902,15 @@ private extension Color {
         #else
         Color.gray.opacity(0.24)
         #endif
+    }
+
+    /// Signale qu'un ami est sollicité pour un truc sans dire "occupé" :
+    /// même teinte que le badge "En attente" des invitations (#f97316),
+    /// mais très pâle pour ne pas se confondre avec une vraie
+    /// indisponibilité (poteBusyOther) — le texte reste toujours en
+    /// .secondary par-dessus, jamais dans cette teinte, pour la lisibilité.
+    static var potePendingOther: Color {
+        Color(hex: "#f97316").opacity(0.12)
     }
 
     init(hex: String) {

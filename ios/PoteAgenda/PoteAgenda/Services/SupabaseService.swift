@@ -293,6 +293,22 @@ final class SupabaseService {
         )
     }
 
+    /// Créneaux où un ami a une invitation de sortie en attente de réponse
+    /// (get_friends_pending_outings) : jamais de titre, juste le signal
+    /// qu'il pourrait devenir indisponible s'il accepte.
+    func friendsPendingOutings(session: AuthSession, friendIds: [String], start: Date, end: Date) async throws -> [BusyEvent] {
+        guard !friendIds.isEmpty else { return [] }
+        return try await rpc(
+            session: session,
+            name: "get_friends_pending_outings",
+            body: FriendsBusyEventsPayload(
+                p_friend_ids: friendIds,
+                p_range_start: DateHelpers.apiDateString(start),
+                p_range_end: DateHelpers.apiDateString(end)
+            )
+        )
+    }
+
     func outings(session: AuthSession) async throws -> [ReceivedOutingRow] {
         let participants: [OutingParticipant] = try await request(
             path: "/rest/v1/outing_participants",

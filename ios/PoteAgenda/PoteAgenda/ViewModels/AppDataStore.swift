@@ -7,6 +7,7 @@ final class AppDataStore: ObservableObject {
     @Published var selectedDay = Date()
     @Published var calendarEvents: [CalendarEvent] = []
     @Published var friendsBusyEvents: [BusyEvent] = []
+    @Published var friendsPendingOutings: [BusyEvent] = []
     @Published var friends: [FriendRow] = []
     @Published var groups: [PoteGroup] = []
     @Published var selectedGroup: PoteGroup?
@@ -87,6 +88,17 @@ final class AppDataStore: ObservableObject {
                 friendsBusyEvents = []
                 errorMessage = "Impossible de charger les indisponibilités des amis : \(error.localizedDescription)"
             }
+            do {
+                friendsPendingOutings = try await service.friendsPendingOutings(
+                    session: session,
+                    friendIds: acceptedFriendIds,
+                    start: start,
+                    end: end
+                )
+            } catch {
+                if isCancellation(error) { throw error }
+                friendsPendingOutings = []
+            }
             if let selectedGroup {
                 do {
                     busyEvents = try await service.busyEvents(
@@ -109,6 +121,7 @@ final class AppDataStore: ObservableObject {
             try await service.addCalendarEvent(session: session, title: title, startsAt: startsAt, endsAt: endsAt, color: color)
             let bounds = DateHelpers.monthBounds(for: selectedDay)
             calendarEvents = try await service.calendarEvents(session: session, start: bounds.start, end: bounds.end)
+            await refreshAvailabilitySignals()
         }
     }
 
@@ -117,6 +130,43 @@ final class AppDataStore: ObservableObject {
         await run {
             try await service.deleteCalendarEvent(session: session, id: id)
             calendarEvents.removeAll { $0.id == id }
+            await refreshAvailabilitySignals()
+        }
+    }
+
+    /// Une indisponibilité ajoutée/supprimée, ou une invitation
+    /// créée/répondue/annulée, change ce que les autres voient de ma
+    /// disponibilité (groupe, amis). Sans ça, les vues qui affichent cette
+    /// disponibilité (groupe sélectionné, agenda ami) restaient périmées
+    /// jusqu'au prochain refresh complet.
+    private func refreshAvailabilitySignals() async {
+        let bounds = DateHelpers.monthBounds(for: selectedDay)
+        do {
+            friendsBusyEvents = try await service.friendsBusyEvents(
+                session: session,
+                friendIds: acceptedFriendIds,
+                start: bounds.start,
+                end: bounds.end
+            )
+        } catch {
+            if !isCancellation(error) { friendsBusyEvents = [] }
+        }
+        do {
+            friendsPendingOutings = try await service.friendsPendingOutings(
+                session: session,
+                friendIds: acceptedFriendIds,
+                start: bounds.start,
+                end: bounds.end
+            )
+        } catch {
+            if !isCancellation(error) { friendsPendingOutings = [] }
+        }
+        if let selectedGroup {
+            do {
+                busyEvents = try await service.busyEvents(session: session, groupId: selectedGroup.id, start: bounds.start, end: bounds.end)
+            } catch {
+                if !isCancellation(error) { busyEvents = [] }
+            }
         }
     }
 
@@ -206,6 +256,17 @@ final class AppDataStore: ObservableObject {
                 if isCancellation(error) { throw error }
                 friendsBusyEvents = []
                 errorMessage = "Impossible de charger les indisponibilités des amis : \(error.localizedDescription)"
+            }
+            do {
+                friendsPendingOutings = try await service.friendsPendingOutings(
+                    session: session,
+                    friendIds: acceptedFriendIds,
+                    start: bounds.start,
+                    end: bounds.end
+                )
+            } catch {
+                if isCancellation(error) { throw error }
+                friendsPendingOutings = []
             }
         }
     }
@@ -391,6 +452,7 @@ final class AppDataStore: ObservableObject {
             try await service.respondToOuting(session: session, outingId: outing.id, response: response)
             outings = try await service.outings(session: session)
             sentOutings = try await service.sentOutings(session: session)
+            await refreshAvailabilitySignals()
         }
     }
 
@@ -407,6 +469,7 @@ final class AppDataStore: ObservableObject {
             try await service.cancelOuting(session: session, outingId: outing.id)
             sentOutings = try await service.sentOutings(session: session)
             outings = try await service.outings(session: session)
+            await refreshAvailabilitySignals()
         }
     }
 
@@ -482,6 +545,7 @@ final class AppDataStore: ObservableObject {
             )
             sentOutings = try await service.sentOutings(session: session)
             outings = try await service.outings(session: session)
+            await refreshAvailabilitySignals()
         }
     }
 
