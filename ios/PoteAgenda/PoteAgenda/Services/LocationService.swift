@@ -45,8 +45,18 @@ final class LocationService: NSObject, ObservableObject {
 
     @Published private(set) var authorizationStatus: CLAuthorizationStatus
 
+    /// Délai maximal d'attente d'une position avant d'abandonner. CLLocationManager
+    /// est censé toujours rappeler `didUpdateLocations` ou `didFailWithError`, mais
+    /// rien ne le garantit dans tous les cas (ex. daemon de localisation bloqué) ;
+    /// sans filet, une continuation jamais reprise bloquerait l'appelant pour toujours.
+    private static let requestTimeout: TimeInterval = 15
+
     private let manager = CLLocationManager()
-    private var locationContinuation: CheckedContinuation<CLLocationCoordinate2D, Error>?
+    /// Toutes les demandes en cours partagent le même appel `requestLocation()` :
+    /// une seule requête CoreLocation à la fois, et chaque appelant peut être
+    /// annulé indépendamment sans affecter les autres.
+    private var pendingContinuations: [UUID: CheckedContinuation<CLLocationCoordinate2D, Error>] = [:]
+    private var timeoutTask: Task<Void, Never>?
 
     private override init() {
         authorizationStatus = manager.authorizationStatus
@@ -63,9 +73,62 @@ final class LocationService: NSObject, ObservableObject {
         guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
             throw LocationServiceError.unauthorized
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            locationContinuation = continuation
-            manager.requestLocation()
+
+        let requestId = UUID()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                register(continuation, id: requestId)
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.cancelRequest(id: requestId)
+            }
+        }
+    }
+
+    private func register(_ continuation: CheckedContinuation<CLLocationCoordinate2D, Error>, id: UUID) {
+        let isFirstRequest = pendingContinuations.isEmpty
+        pendingContinuations[id] = continuation
+        guard isFirstRequest else { return }
+        scheduleTimeout()
+        manager.requestLocation()
+    }
+
+    private func cancelRequest(id: UUID) {
+        guard let continuation = pendingContinuations.removeValue(forKey: id) else { return }
+        continuation.resume(throwing: CancellationError())
+        if pendingContinuations.isEmpty {
+            timeoutTask?.cancel()
+            timeoutTask = nil
+        }
+    }
+
+    private func scheduleTimeout() {
+        timeoutTask?.cancel()
+        timeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.requestTimeout * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.failPending(with: LocationServiceError.unableToLocate)
+        }
+    }
+
+    private func resolvePending(with coordinate: CLLocationCoordinate2D) {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        let continuations = pendingContinuations
+        pendingContinuations.removeAll()
+        for continuation in continuations.values {
+            continuation.resume(returning: coordinate)
+        }
+    }
+
+    private func failPending(with error: Error) {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        let continuations = pendingContinuations
+        pendingContinuations.removeAll()
+        for continuation in continuations.values {
+            continuation.resume(throwing: error)
         }
     }
 }
@@ -81,15 +144,13 @@ extension LocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let coordinate = locations.last?.coordinate else { return }
         Task { @MainActor in
-            self.locationContinuation?.resume(returning: coordinate)
-            self.locationContinuation = nil
+            self.resolvePending(with: coordinate)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            self.locationContinuation?.resume(throwing: LocationServiceError.unableToLocate)
-            self.locationContinuation = nil
+            self.failPending(with: LocationServiceError.unableToLocate)
         }
     }
 }

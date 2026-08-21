@@ -497,7 +497,7 @@ private extension View {
     }
 }
 
-private func isOutingPast(_ outing: Outing) -> Bool {
+func isOutingPast(_ outing: Outing) -> Bool {
     guard let ends = DateHelpers.parse(outing.endsAt) else { return false }
     return ends < Date()
 }

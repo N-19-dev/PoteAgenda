@@ -39,6 +39,14 @@ struct MainTabView: View {
             }
             await dataStore.refreshAll()
         }
+        // `dataStore` est créé une seule fois (cf. AppDataStore.session) ; il faut
+        // donc répercuter explicitement tout renouvellement de session ici, sinon
+        // il continuerait à utiliser un token périmé jusqu'à la déconnexion.
+        .onChange(of: sessionStore.session) { _, newSession in
+            if let newSession {
+                dataStore.updateSession(newSession)
+            }
+        }
         .alert("Erreur", isPresented: Binding(
             get: { dataStore.errorMessage != nil },
             set: { if !$0 { dataStore.errorMessage = nil } }

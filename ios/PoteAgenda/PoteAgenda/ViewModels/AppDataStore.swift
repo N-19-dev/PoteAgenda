@@ -45,7 +45,14 @@ final class AppDataStore: ObservableObject {
     private static let departureRemindersEnabledDefaultsKey = "poteagenda.departureRemindersEnabled"
 
     private let service: SupabaseService
-    private let session: AuthSession
+    /// `AppDataStore` est instancié une seule fois par `@StateObject`
+    /// (voir `MainTabView`) : la valeur passée au constructeur n'est prise en
+    /// compte qu'à la toute première évaluation de la vue. Sans `updateSession`,
+    /// un renouvellement de token par `SessionStore` (ex. après expiration)
+    /// ne serait jamais répercuté ici et l'app continuerait à utiliser un
+    /// token périmé jusqu'à la reconnexion. `MainTabView` appelle
+    /// `updateSession` via `.onChange(of: sessionStore.session)`.
+    private var session: AuthSession
     private var hasLoadedOutings = false
     private var knownReceivedOutingIds = Set<String>()
     private var knownReminderKeys = Set<String>()
@@ -58,6 +65,10 @@ final class AppDataStore: ObservableObject {
         let storedTravelMode = UserDefaults.standard.string(forKey: Self.travelModeDefaultsKey).flatMap(TravelMode.init(rawValue:))
         self.travelMode = storedTravelMode ?? .automobile
         self.departureRemindersEnabled = UserDefaults.standard.bool(forKey: Self.departureRemindersEnabledDefaultsKey)
+    }
+
+    func updateSession(_ session: AuthSession) {
+        self.session = session
     }
 
     func refreshAll() async {
