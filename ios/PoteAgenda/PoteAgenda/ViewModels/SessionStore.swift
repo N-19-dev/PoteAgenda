@@ -19,13 +19,13 @@ final class SessionStore: ObservableObject {
     }
 
     func restoreSession() async {
-        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return }
+        guard let data = KeychainService.load(forKey: storageKey) else { return }
         do {
             let stored = try JSONDecoder().decode(AuthSession.self, from: data)
             session = try await service.refresh(session: stored)
             persist()
         } catch {
-            UserDefaults.standard.removeObject(forKey: storageKey)
+            KeychainService.delete(forKey: storageKey)
             session = nil
         }
     }
@@ -53,7 +53,16 @@ final class SessionStore: ObservableObject {
         await run {
             try? await service.signOut(session: session)
             self.session = nil
-            UserDefaults.standard.removeObject(forKey: storageKey)
+            KeychainService.delete(forKey: storageKey)
+        }
+    }
+
+    func deleteAccount() async {
+        guard let session else { return }
+        await run {
+            try await service.deleteAccount(session: session)
+            self.session = nil
+            KeychainService.delete(forKey: storageKey)
         }
     }
 
@@ -70,6 +79,6 @@ final class SessionStore: ObservableObject {
 
     private func persist() {
         guard let session, let data = try? JSONEncoder().encode(session) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        KeychainService.save(data, forKey: storageKey)
     }
 }

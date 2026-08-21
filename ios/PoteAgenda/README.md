@@ -29,8 +29,10 @@ Ce socle couvre deja :
 
 Restera a durcir avant publication App Store :
 
-- stockage Keychain au lieu de `UserDefaults` pour la session ;
 - import/resync ICS natif ou via Edge Function ;
 - notifications push ;
 - tests UI et verification sur appareils reels ;
-- generation d'icones App Store.
+- generation d'icones App Store ;
+- heberger `PRIVACY.md` (URL) et l'ajouter a la fiche App Store Connect + un
+  lien depuis l'app (AuthView/SettingsView) ;
+- compte developpeur Apple + creation de la fiche App Store Connect.

@@ -531,6 +531,15 @@ final class SupabaseService {
         )
     }
 
+    func deleteAccount(session: AuthSession) async throws {
+        _ = try await rawRequest(
+            path: "/rest/v1/rpc/delete_own_account",
+            method: "POST",
+            session: session,
+            body: EmptyBody()
+        )
+    }
+
     private func profiles(session: AuthSession, ids: [String]) async throws -> [String: Profile] {
         guard !ids.isEmpty else { return [:] }
         let rows: [Profile] = try await request(

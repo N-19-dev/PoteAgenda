@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var sessionStore: SessionStore
     @EnvironmentObject private var dataStore: AppDataStore
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -12,6 +13,9 @@ struct SettingsView: View {
                     Text(sessionStore.session?.user.email ?? "Connecte")
                     Button("Se deconnecter", role: .destructive) {
                         Task { await sessionStore.signOut() }
+                    }
+                    Button("Supprimer mon compte", role: .destructive) {
+                        showDeleteConfirmation = true
                     }
                 }
 
@@ -28,6 +32,18 @@ struct SettingsView: View {
             .task {
                 dataStore.loadDeviceCalendarsIfAuthorized()
                 await dataStore.refreshCalendarSources()
+            }
+            .confirmationDialog(
+                "Supprimer definitivement ton compte ?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Supprimer mon compte", role: .destructive) {
+                    Task { await sessionStore.deleteAccount() }
+                }
+                Button("Annuler", role: .cancel) {}
+            } message: {
+                Text("Toutes tes donnees (agenda, amis, groupes, sorties) seront supprimees. Cette action est irreversible.")
             }
         }
     }
