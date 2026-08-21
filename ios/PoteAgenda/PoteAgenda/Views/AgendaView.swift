@@ -8,6 +8,7 @@ struct AgendaView: View {
     @State private var didSelectInitialFriends = false
     @State private var eventToDelete: CalendarEvent?
     @State private var selectedBlock: AgendaBlock?
+    @State private var overlapGroup: AgendaOverlapGroup?
     @State private var calendarPageOffset = 0
 
     private let calendarPageRadius = 5
@@ -61,6 +62,9 @@ struct AgendaView: View {
                                     },
                                     onSelectBlock: { block in
                                         selectedBlock = block
+                                    },
+                                    onSelectOverlapGroup: { blocks in
+                                        overlapGroup = AgendaOverlapGroup(blocks: blocks)
                                     },
                                     onCreateDraft: { draft in
                                         draftEvent = draft
@@ -126,6 +130,16 @@ struct AgendaView: View {
                     selectedBlock = nil
                 }
             }
+            .sheet(item: $overlapGroup) { group in
+                AgendaOverlapGroupSheet(
+                    blocks: group.blocks,
+                    onSelect: { block in
+                        overlapGroup = nil
+                        selectedBlock = block
+                    },
+                    onClose: { overlapGroup = nil }
+                )
+            }
             .confirmationDialog(
                 "Indisponibilité",
                 isPresented: Binding(
@@ -173,8 +187,11 @@ struct AgendaView: View {
             )
         }
 
-        blocks += dataStore.friendsBusyEvents
+        let selectedFriendBusyEvents = dataStore.friendsBusyEvents
             .filter { effectiveSelectedFriendIds.contains($0.userId) }
+        let selectedFriendBusyKeys = Set(selectedFriendBusyEvents.map(busyEventKey))
+
+        blocks += selectedFriendBusyEvents
             .map { busyEvent in
                 AgendaBlock(
                     id: "friend-\(busyEvent.userId)-\(busyEvent.startAt)",
@@ -217,22 +234,35 @@ struct AgendaView: View {
             }
 
         if dataStore.agendaShowingGroupBusyEvents {
-            blocks += dataStore.busyEvents.map { busyEvent in
-                AgendaBlock(
-                    id: "group-\(busyEvent.userId)-\(busyEvent.startAt)",
-                    title: friendName(for: busyEvent.userId),
-                    subtitle: dataStore.selectedGroup?.name ?? "Groupe",
-                    startAt: busyEvent.startAt,
-                    endAt: busyEvent.endAt,
-                    color: "#64748b",
-                    ownEvent: nil,
-                    style: .friendBusy,
-                    details: .friendBusy(busyEvent, friendName(for: busyEvent.userId), dataStore.selectedGroup?.name ?? "Groupe")
-                )
-            }
+            // Un ami à la fois sélectionné individuellement et membre du
+            // groupe affiché a déjà une barre "ami sélectionné" ci-dessus
+            // pour la même indispo réelle : on ne la duplique pas ici, sinon
+            // deux barres identiques se chevauchent pile sur le même créneau.
+            blocks += dataStore.busyEvents
+                .filter { !selectedFriendBusyKeys.contains(busyEventKey($0)) }
+                .map { busyEvent in
+                    AgendaBlock(
+                        id: "group-\(busyEvent.userId)-\(busyEvent.startAt)",
+                        title: friendName(for: busyEvent.userId),
+                        subtitle: dataStore.selectedGroup?.name ?? "Groupe",
+                        startAt: busyEvent.startAt,
+                        endAt: busyEvent.endAt,
+                        color: "#64748b",
+                        ownEvent: nil,
+                        style: .friendBusy,
+                        details: .friendBusy(busyEvent, friendName(for: busyEvent.userId), dataStore.selectedGroup?.name ?? "Groupe")
+                    )
+                }
         }
 
         return blocks
+    }
+
+    /// Identifie une indisponibilité par (personne, horaires) pour pouvoir
+    /// dédupliquer un même ami vu à la fois via "amis sélectionnés" et via un
+    /// groupe affiché.
+    private func busyEventKey(_ busyEvent: BusyEvent) -> String {
+        "\(busyEvent.userId)|\(busyEvent.startAt)|\(busyEvent.endAt)"
     }
 
     /// true si ce créneau (ami, horaires) correspond à une invitation dont
@@ -338,6 +368,15 @@ private enum AgendaDisplayMode: String, CaseIterable, Identifiable {
     case month = "Mois"
 
     var id: String { rawValue }
+}
+
+/// Ensemble de blocs qui se chevauchent dans le temps sur un même jour, en
+/// vue semaine/mois : trop étroit pour un vrai layout en colonnes, on
+/// n'affiche qu'un bloc + un badge de compte, et ce groupe sert à lister les
+/// autres au tap.
+private struct AgendaOverlapGroup: Identifiable {
+    let id = UUID()
+    let blocks: [AgendaBlock]
 }
 
 struct AgendaDraftEvent: Identifiable {
@@ -592,6 +631,7 @@ private struct AgendaWeekGrid: View {
     let onSelectDay: (Date) -> Void
     let onSelectOwnEvent: (CalendarEvent) -> Void
     let onSelectBlock: (AgendaBlock) -> Void
+    let onSelectOverlapGroup: ([AgendaBlock]) -> Void
     let onCreateDraft: (AgendaDraftEvent) -> Void
     @State private var expandedBlockId: String?
 
@@ -706,46 +746,29 @@ private struct AgendaWeekGrid: View {
             }
 
             let positionedBlocks = positionedBlocks(dayWidth: dayWidth)
+            let friendPositioned = positionedFriendBusyBlocks(positionedBlocks)
+            let eventPositioned = positionedEventBlocks(positionedBlocks)
 
-            ForEach(positionedFriendBusyBlocks(positionedBlocks)) { positioned in
-                // Un événement court (ex. 10-15 min) est remonté à une
-                // hauteur minimale lisible (voir minReadableHeight) ; sans
-                // recentrer verticalement, le bloc ne s'agrandissait que
-                // vers le bas et venait chevaucher/masquer le texte du
-                // créneau suivant. On centre donc l'agrandissement sur
-                // l'horaire réel.
-                let flooredHeight = max(positioned.height, Self.minReadableHeight)
-                let verticalGrowth = flooredHeight - positioned.height
-                Button {
-                    onSelectBlock(positioned.block)
-                } label: {
-                    FriendBusyOverlayBlock(block: positioned.block, compact: flooredHeight < Self.compactTextThreshold)
+            // Vue jour : la colonne est assez large pour poser les blocs qui
+            // se chevauchent côte à côte (comme un agenda classique). Vue
+            // semaine/mois : la colonne de jour est déjà étroite, des
+            // sous-colonnes y seraient illisibles — on affiche un seul bloc
+            // (le plus pertinent) avec un badge de compte, et le tap liste
+            // les autres.
+            if displayMode == .day {
+                ForEach(columnLayout(friendPositioned)) { columned in
+                    friendOverlayBlockView(columned, dayWidth: dayWidth)
                 }
-                .buttonStyle(.plain)
-                .frame(width: max(dayWidth - 10, 36), height: flooredHeight)
-                .contentShape(RoundedRectangle(cornerRadius: 7))
-                .offset(
-                    x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 5,
-                    y: positioned.top - verticalGrowth / 2
-                )
-                .zIndex(4)
-            }
-
-            ForEach(positionedEventBlocks(positionedBlocks)) { positioned in
-                let isExpanded = expandedBlockId == positioned.id
-                AgendaEventBlockView(
-                    block: positioned.block,
-                    hideLabels: false,
-                    expanded: isExpanded
-                ) {
-                    onSelectBlock(positioned.block)
+                ForEach(columnLayout(eventPositioned)) { columned in
+                    eventBlockView(columned, dayWidth: dayWidth)
                 }
-                .frame(width: max(dayWidth - 8, 34), height: max(positioned.height, isExpanded ? 68 : 30))
-                .offset(
-                    x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 4,
-                    y: positioned.top
-                )
-                .zIndex(positioned.block.style.zIndex)
+            } else {
+                ForEach(overlapGroups(friendPositioned)) { group in
+                    friendOverlayBadgeView(group, dayWidth: dayWidth)
+                }
+                ForEach(overlapGroups(eventPositioned)) { group in
+                    eventBadgeView(group, dayWidth: dayWidth)
+                }
             }
 
             if let todayIndex = weekDates.firstIndex(where: { Calendar.current.isDateInToday($0) }) {
@@ -787,6 +810,182 @@ private struct AgendaWeekGrid: View {
 
     private func positionedEventBlocks(_ positionedBlocks: [PositionedAgendaBlock]) -> [PositionedAgendaBlock] {
         positionedBlocks.filter { !isFriendOverlayStyle($0.block.style) }
+    }
+
+    /// Regroupe, jour par jour, les blocs dont l'intervalle vertical (top →
+    /// top+height) se chevauche transitivement — deux blocs qui se touchent
+    /// bout à bout ne forment pas un chevauchement, seul un vrai recouvrement
+    /// compte.
+    private func overlapClusters(_ positionedBlocks: [PositionedAgendaBlock]) -> [[PositionedAgendaBlock]] {
+        let byDay = Dictionary(grouping: positionedBlocks, by: \.dayIndex)
+        var clusters: [[PositionedAgendaBlock]] = []
+        for (_, dayBlocks) in byDay {
+            let sorted = dayBlocks.sorted {
+                $0.top == $1.top ? $0.height > $1.height : $0.top < $1.top
+            }
+            var current: [PositionedAgendaBlock] = []
+            var currentEnd: CGFloat = -.infinity
+            for block in sorted {
+                let end = block.top + block.height
+                if current.isEmpty || block.top < currentEnd {
+                    current.append(block)
+                    currentEnd = max(currentEnd, end)
+                } else {
+                    clusters.append(current)
+                    current = [block]
+                    currentEnd = end
+                }
+            }
+            if !current.isEmpty { clusters.append(current) }
+        }
+        return clusters
+    }
+
+    /// Assigne à chaque bloc chevauchant une colonne (algorithme glouton
+    /// classique de layout d'agenda) : tous les blocs d'un même cluster se
+    /// partagent la largeur du jour à parts égales.
+    private func columnLayout(_ positionedBlocks: [PositionedAgendaBlock]) -> [ColumnedAgendaBlock] {
+        overlapClusters(positionedBlocks).flatMap { cluster -> [ColumnedAgendaBlock] in
+            var columnEnds: [CGFloat] = []
+            var columnOf: [String: Int] = [:]
+            for block in cluster.sorted(by: { $0.top < $1.top }) {
+                if let idx = columnEnds.firstIndex(where: { $0 <= block.top }) {
+                    columnEnds[idx] = block.top + block.height
+                    columnOf[block.id] = idx
+                } else {
+                    columnEnds.append(block.top + block.height)
+                    columnOf[block.id] = columnEnds.count - 1
+                }
+            }
+            let columnCount = columnEnds.count
+            return cluster.map { ColumnedAgendaBlock(positioned: $0, columnIndex: columnOf[$0.id] ?? 0, columnCount: columnCount) }
+        }
+    }
+
+    /// Vue semaine/mois : un cluster de blocs chevauchants devient un seul
+    /// groupe affichant le bloc le plus pertinent (mes événements avant les
+    /// sorties, avant les indispos d'amis) et le compte total.
+    private func overlapGroups(_ positionedBlocks: [PositionedAgendaBlock]) -> [AgendaOverlapBadgeGroup] {
+        overlapClusters(positionedBlocks).compactMap { cluster in
+            guard let primary = cluster.min(by: { overlapPriority($0.block.style) < overlapPriority($1.block.style) || (overlapPriority($0.block.style) == overlapPriority($1.block.style) && $0.top < $1.top) }) else {
+                return nil
+            }
+            return AgendaOverlapBadgeGroup(primary: primary, blocks: cluster.map(\.block))
+        }
+    }
+
+    private func overlapPriority(_ style: AgendaBlockStyle) -> Int {
+        switch style {
+        case .ownBusy: return 0
+        case .outing: return 1
+        case .friendBusy: return 2
+        case .friendPending: return 3
+        }
+    }
+
+    @ViewBuilder
+    private func friendOverlayBlockView(_ columned: ColumnedAgendaBlock, dayWidth: CGFloat) -> some View {
+        let positioned = columned.positioned
+        // Un événement court (ex. 10-15 min) est remonté à une hauteur
+        // minimale lisible (voir minReadableHeight) ; sans recentrer
+        // verticalement, le bloc ne s'agrandissait que vers le bas et venait
+        // chevaucher/masquer le texte du créneau suivant. On centre donc
+        // l'agrandissement sur l'horaire réel.
+        let flooredHeight = max(positioned.height, Self.minReadableHeight)
+        let verticalGrowth = flooredHeight - positioned.height
+        let availableWidth = max(dayWidth - 10, 36)
+        let columnWidth = availableWidth / CGFloat(columned.columnCount)
+        Button {
+            onSelectBlock(positioned.block)
+        } label: {
+            FriendBusyOverlayBlock(block: positioned.block, compact: flooredHeight < Self.compactTextThreshold || columned.columnCount > 1)
+        }
+        .buttonStyle(.plain)
+        .frame(width: max(columnWidth - 3, 26), height: flooredHeight)
+        .contentShape(RoundedRectangle(cornerRadius: 7))
+        .offset(
+            x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 5 + CGFloat(columned.columnIndex) * columnWidth,
+            y: positioned.top - verticalGrowth / 2
+        )
+        .zIndex(4)
+    }
+
+    @ViewBuilder
+    private func eventBlockView(_ columned: ColumnedAgendaBlock, dayWidth: CGFloat) -> some View {
+        let positioned = columned.positioned
+        let isExpanded = expandedBlockId == positioned.id
+        let availableWidth = max(dayWidth - 8, 34)
+        let columnWidth = availableWidth / CGFloat(columned.columnCount)
+        AgendaEventBlockView(
+            block: positioned.block,
+            hideLabels: false,
+            expanded: isExpanded
+        ) {
+            onSelectBlock(positioned.block)
+        }
+        .frame(width: max(columnWidth - 3, 24), height: max(positioned.height, isExpanded ? 68 : 30))
+        .offset(
+            x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 4 + CGFloat(columned.columnIndex) * columnWidth,
+            y: positioned.top
+        )
+        .zIndex(positioned.block.style.zIndex)
+    }
+
+    @ViewBuilder
+    private func friendOverlayBadgeView(_ group: AgendaOverlapBadgeGroup, dayWidth: CGFloat) -> some View {
+        let positioned = group.primary
+        let flooredHeight = max(positioned.height, Self.minReadableHeight)
+        let verticalGrowth = flooredHeight - positioned.height
+        Button {
+            if group.blocks.count > 1 {
+                onSelectOverlapGroup(group.blocks)
+            } else {
+                onSelectBlock(positioned.block)
+            }
+        } label: {
+            FriendBusyOverlayBlock(block: positioned.block, compact: flooredHeight < Self.compactTextThreshold)
+                .overlay(alignment: .topTrailing) {
+                    if group.blocks.count > 1 {
+                        OverlapCountBadge(count: group.blocks.count)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .frame(width: max(dayWidth - 10, 36), height: flooredHeight)
+        .contentShape(RoundedRectangle(cornerRadius: 7))
+        .offset(
+            x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 5,
+            y: positioned.top - verticalGrowth / 2
+        )
+        .zIndex(4)
+    }
+
+    @ViewBuilder
+    private func eventBadgeView(_ group: AgendaOverlapBadgeGroup, dayWidth: CGFloat) -> some View {
+        let positioned = group.primary
+        let isExpanded = expandedBlockId == positioned.id
+        AgendaEventBlockView(
+            block: positioned.block,
+            hideLabels: false,
+            expanded: isExpanded
+        ) {
+            if group.blocks.count > 1 {
+                onSelectOverlapGroup(group.blocks)
+            } else {
+                onSelectBlock(positioned.block)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if group.blocks.count > 1 {
+                OverlapCountBadge(count: group.blocks.count)
+            }
+        }
+        .frame(width: max(dayWidth - 8, 34), height: max(positioned.height, isExpanded ? 68 : 30))
+        .offset(
+            x: hourRailWidth + CGFloat(positioned.dayIndex) * dayWidth + 4,
+            y: positioned.top
+        )
+        .zIndex(positioned.block.style.zIndex)
     }
 
     /// true si au moins un ami est réellement occupé ce jour-là (par
@@ -1078,6 +1277,39 @@ private struct PositionedAgendaBlock: Identifiable {
     var id: String { "\(block.id)-\(dayIndex)" }
 }
 
+/// Un bloc positionné auquel une colonne a été assignée au sein de son
+/// cluster de chevauchement (vue jour).
+private struct ColumnedAgendaBlock: Identifiable {
+    let positioned: PositionedAgendaBlock
+    let columnIndex: Int
+    let columnCount: Int
+
+    var id: String { positioned.id }
+}
+
+/// Un cluster de blocs qui se chevauchent (vue semaine/mois) : seul `primary`
+/// est dessiné, `blocks` sert à lister le reste au tap sur le badge.
+private struct AgendaOverlapBadgeGroup: Identifiable {
+    let primary: PositionedAgendaBlock
+    let blocks: [AgendaBlock]
+
+    var id: String { primary.id }
+}
+
+private struct OverlapCountBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text("\(count)")
+            .font(.system(size: 9, weight: .black))
+            .foregroundStyle(.white)
+            .frame(minWidth: 14, minHeight: 14)
+            .padding(2)
+            .background(Circle().fill(Color.accentColor))
+            .offset(x: 5, y: -5)
+    }
+}
+
 private struct AgendaBlock: Identifiable {
     let id: String
     let title: String
@@ -1192,6 +1424,52 @@ private enum AgendaBlockStyle: Equatable {
             return 2
         case .outing:
             return 1
+        }
+    }
+}
+
+/// Liste les blocs d'un même créneau chevauchant (vue semaine/mois, tap sur
+/// le badge de compte) ; sélectionner une ligne ouvre son détail habituel.
+private struct AgendaOverlapGroupSheet: View {
+    let blocks: [AgendaBlock]
+    let onSelect: (AgendaBlock) -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List(blocks) { block in
+                Button {
+                    onSelect(block)
+                } label: {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(block.style.backgroundColor(for: block))
+                            .frame(width: 12, height: 12)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(block.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            if let subtitle = block.subtitle {
+                                Text(subtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Text(block.timeLabel)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .navigationTitle("Ce créneau")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { onClose() }
+                }
+            }
         }
     }
 }
