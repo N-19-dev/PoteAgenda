@@ -268,11 +268,11 @@ final class AppDataStore: ObservableObject {
         }
     }
 
-    func searchProfiles(_ query: String) async throws -> [Profile] {
+    func searchProfiles(_ query: String) async throws -> [ProfileSearchResult] {
         try await service.searchProfiles(session: session, query: query)
     }
 
-    func sendFriendRequest(_ profile: Profile) async {
+    func sendFriendRequest(_ profile: ProfileSearchResult) async {
         await run {
             try await service.sendFriendRequest(session: session, addresseeId: profile.id)
             friends = try await service.friendships(session: session)

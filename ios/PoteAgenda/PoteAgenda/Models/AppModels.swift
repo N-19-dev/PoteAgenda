@@ -33,6 +33,19 @@ struct Profile: Codable, Identifiable, Equatable {
     }
 }
 
+/// Résultat de `search_profiles` : ne contient jamais l'email d'un inconnu
+/// (cf. migration 0017_restrict_search_profiles_email).
+struct ProfileSearchResult: Codable, Identifiable, Equatable {
+    let id: String
+    let username: String
+    let avatarUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case avatarUrl = "avatar_url"
+    }
+}
+
 enum FriendshipStatus: String, Codable {
     case pending
     case accepted

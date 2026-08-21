@@ -130,7 +130,7 @@ final class SupabaseService {
         )
     }
 
-    func searchProfiles(session: AuthSession, query: String) async throws -> [Profile] {
+    func searchProfiles(session: AuthSession, query: String) async throws -> [ProfileSearchResult] {
         guard query.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 else { return [] }
         return try await rpc(session: session, name: "search_profiles", body: ["p_query": query])
     }

@@ -3,7 +3,7 @@ import SwiftUI
 struct FriendsView: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @State private var query = ""
-    @State private var results: [Profile] = []
+    @State private var results: [ProfileSearchResult] = []
     let onOpenAgenda: () -> Void
 
     var body: some View {
@@ -20,10 +20,7 @@ struct FriendsView: View {
 
                     ForEach(results) { profile in
                         HStack {
-                            VStack(alignment: .leading) {
-                                Text(profile.username)
-                                Text(profile.email).font(.caption).foregroundStyle(.secondary)
-                            }
+                            Text(profile.username)
                             Spacer()
                             Button("Ajouter") {
                                 Task { await dataStore.sendFriendRequest(profile) }
