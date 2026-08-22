@@ -151,8 +151,9 @@ les Command Line Tools) — à lancer une fois dans Xcode avant de merger, voir
 **Rotation du token Supabase (`sbp_...`) et du mot de passe DB dans
 `.env.local`.** Ce fichier n'a jamais été commité (vérifié dans tout
 l'historique git), mais son contenu a été affiché plusieurs fois dans les
-sessions Claude qui ont mené cette revue. Rotation à faire depuis le
-dashboard Supabase :
+sessions Claude qui ont mené cette revue. Décision (2026-08-22) : rotation
+**volontairement reportée à la mise en prod**, pas avant. Rotation à faire
+depuis le dashboard Supabase le moment venu :
 - Token d'accès : *Account → Access Tokens*
 - Mot de passe DB : *Project Settings → Database*
 
