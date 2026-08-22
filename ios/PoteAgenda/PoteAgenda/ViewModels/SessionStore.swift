@@ -60,6 +60,18 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    /// Ne remonte jamais d'erreur distincte selon que l'email existe ou non
+    /// côté serveur (le endpoint Supabase /recover répond 200 dans les deux
+    /// cas) : ça évite de laisser deviner quels emails sont inscrits.
+    func resetPassword(email: String) async -> Bool {
+        var succeeded = false
+        await run {
+            try await service.resetPassword(email: email)
+            succeeded = true
+        }
+        return succeeded
+    }
+
     func signOut() async {
         guard let session else { return }
         await run {

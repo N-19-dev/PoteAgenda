@@ -4,6 +4,9 @@ struct FriendsView: View {
     @EnvironmentObject private var dataStore: AppDataStore
     @State private var query = ""
     @State private var results: [ProfileSearchResult] = []
+    @State private var isSearching = false
+    @State private var hasSearched = false
+    @State private var sentRequestIds: Set<String> = []
     let onOpenAgenda: () -> Void
 
     var body: some View {
@@ -13,17 +16,43 @@ struct FriendsView: View {
                     TextField("Pseudo ou email", text: $query)
                         .poteSearchInputTraits()
                         .onSubmit { Task { await search() } }
-                    Button("Rechercher") {
-                        Task { await search() }
+                        .onChange(of: query) {
+                            hasSearched = false
+                            results = []
+                        }
+
+                    HStack {
+                        Button("Rechercher") {
+                            Task { await search() }
+                        }
+                        .disabled(isSearching || query.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)
+
+                        if isSearching {
+                            ProgressView()
+                                .padding(.leading, 6)
+                        }
                     }
-                    .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)
+
+                    if hasSearched, !isSearching, results.isEmpty {
+                        Text("Aucun profil trouvé")
+                            .foregroundStyle(.secondary)
+                    }
 
                     ForEach(results) { profile in
                         HStack {
                             Text(profile.username)
                             Spacer()
-                            Button("Ajouter") {
-                                Task { await dataStore.sendFriendRequest(profile) }
+                            if sentRequestIds.contains(profile.id) {
+                                Text("Demande envoyée")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button("Ajouter") {
+                                    Task {
+                                        await dataStore.sendFriendRequest(profile)
+                                        sentRequestIds.insert(profile.id)
+                                    }
+                                }
                             }
                         }
                     }
@@ -69,11 +98,15 @@ struct FriendsView: View {
     }
 
     private func search() async {
+        isSearching = true
         do {
             results = try await dataStore.searchProfiles(query)
         } catch {
+            results = []
             dataStore.errorMessage = error.localizedDescription
         }
+        isSearching = false
+        hasSearched = true
     }
 
     private func friendRowContent(_ row: FriendRow) -> some View {

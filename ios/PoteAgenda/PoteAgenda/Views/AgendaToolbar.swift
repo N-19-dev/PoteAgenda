@@ -11,52 +11,64 @@ struct AgendaToolbar: View {
     let onSelectGroup: (PoteGroup) -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Button {
-                    moveWeek(by: -1)
-                } label: {
-                    Image(systemName: "chevron.left")
+        VStack(spacing: 14) {
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Button {
+                        moveWeek(by: -1)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Période précédente")
+
+                    Button("Aujourd'hui") {
+                        selectedDay = Date()
+                    }
+                    .buttonStyle(.bordered)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+
+                    Button {
+                        moveWeek(by: 1)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Période suivante")
+
+                    Spacer()
+
+                    DatePicker("Jour", selection: $selectedDay, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
                 }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("Période précédente")
 
-                Button("Aujourd'hui") {
-                    selectedDay = Date()
+                Picker("Affichage", selection: $selectedDisplayMode) {
+                    ForEach(AgendaDisplayMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-
-                Button {
-                    moveWeek(by: 1)
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("Période suivante")
-
-                Spacer()
-
-                DatePicker("Jour", selection: $selectedDay, displayedComponents: .date)
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
+                .pickerStyle(.segmented)
             }
 
-            Picker("Affichage", selection: $selectedDisplayMode) {
-                ForEach(AgendaDisplayMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Disponibilités affichées")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
 
-            FriendsFilterMenu(acceptedFriends: acceptedFriends, selectedFriendIds: $selectedFriendIds)
-            GroupFilterMenu(
-                groups: groups,
-                selectedGroup: selectedGroup,
-                showingGroupBusyEvents: $showingGroupBusyEvents,
-                onSelectGroup: onSelectGroup
-            )
+                FriendsFilterMenu(acceptedFriends: acceptedFriends, selectedFriendIds: $selectedFriendIds)
+                GroupFilterMenu(
+                    groups: groups,
+                    selectedGroup: selectedGroup,
+                    showingGroupBusyEvents: $showingGroupBusyEvents,
+                    onSelectGroup: onSelectGroup
+                )
+
+                Label("Tes amis voient seulement Libre/Occupé, jamais tes titres.", systemImage: "lock.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 
@@ -102,7 +114,7 @@ private struct FriendsFilterMenu: View {
 
     private var filterTitle: String {
         if acceptedFriends.isEmpty { return "Aucun ami accepté" }
-        if selectedFriendIds.isEmpty { return "Aucun ami affiché" }
+        if selectedFriendIds.isEmpty { return "Voir les disponibilités de…" }
         if selectedFriendIds.count == acceptedFriends.count { return "Tous les amis" }
         if selectedFriendIds.count == 1 {
             let selected = acceptedFriends.first { selectedFriendIds.contains(dataStore.friendUserId(for: $0)) }
@@ -216,7 +228,7 @@ private struct GroupFilterMenu: View {
 
     private var groupTitle: String {
         if groups.isEmpty { return "Aucun groupe" }
-        guard showingGroupBusyEvents else { return "Aucun groupe affiché" }
+        guard showingGroupBusyEvents else { return "Voir un groupe…" }
         return selectedGroup?.name ?? "Groupe affiché"
     }
 }

@@ -213,7 +213,7 @@ struct AddEventView: View {
                     Button("Annuler") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Ajouter") {
+                    Button(kind == .busy ? "Ajouter l'indisponibilité" : "Créer l'invitation") {
                         Task {
                             if kind == .busy {
                                 await dataStore.addEvent(title: title, startsAt: startsAt, endsAt: endsAt, color: color)

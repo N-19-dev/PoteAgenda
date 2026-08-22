@@ -37,8 +37,8 @@ private enum InvitationsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .received: "Recues"
-        case .sent: "Envoyees"
+        case .received: "Reçues"
+        case .sent: "Envoyées"
         }
     }
 }
@@ -290,7 +290,7 @@ private struct SentInvitationDetailView: View {
                 }
             }
 
-            Section("Decision") {
+            Section("Décision") {
                 Button {
                     Task { await dataStore.setOutingConfirmed(row.outing, confirmed: row.outing.confirmedAt == nil) }
                 } label: {
@@ -447,8 +447,8 @@ private extension OutingResponse {
     var label: String {
         switch self {
         case .pending: "En attente"
-        case .accepted: "Acceptee"
-        case .declined: "Refusee"
+        case .accepted: "Acceptée"
+        case .declined: "Refusée"
         }
     }
 
@@ -611,10 +611,16 @@ struct OutingDiscussionSection: View {
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1...4)
                     Button(action: send) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
+                        if isSending {
+                            ProgressView()
+                                .frame(width: 22, height: 22)
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.title2)
+                        }
                     }
                     .disabled(isSending || newMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("Envoyer le message")
                 }
             }
             .padding(.vertical, 4)

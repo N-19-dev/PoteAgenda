@@ -44,6 +44,10 @@ final class SupabaseService {
         _ = try await rawRequest(path: "/auth/v1/logout", method: "POST", session: session, body: EmptyBody())
     }
 
+    func resetPassword(email: String) async throws {
+        _ = try await rawRequest(path: "/auth/v1/recover", method: "POST", session: nil, body: RecoverPayload(email: email))
+    }
+
     func calendarEvents(session: AuthSession, day: Date) async throws -> [CalendarEvent] {
         let bounds = DateHelpers.dayBounds(for: day)
         return try await calendarEvents(session: session, start: bounds.start, end: bounds.end)
@@ -730,6 +734,10 @@ private struct EmptyBody: Encodable {}
 private struct EmailPasswordPayload: Encodable {
     let email: String
     let password: String
+}
+
+private struct RecoverPayload: Encodable {
+    let email: String
 }
 
 private struct SignUpPayload: Encodable {

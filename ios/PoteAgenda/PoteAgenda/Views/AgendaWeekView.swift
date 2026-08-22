@@ -29,6 +29,9 @@ struct AgendaWeekGrid: View {
                 VStack(spacing: 0) {
                     weekHeader(dayWidth: dayWidth)
                     Divider()
+                    if blocks.isEmpty {
+                        emptyStateHint
+                    }
                     gridBody(dayWidth: dayWidth)
                 }
                 .frame(width: proxy.size.width)
@@ -83,6 +86,35 @@ struct AgendaWeekGrid: View {
         }
     }
 
+    private var emptyStateHint: some View {
+        Label("Appuie sur + ou maintiens un créneau pour ajouter une indisponibilité.", systemImage: "hand.tap")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Un tap crée directement un brouillon sur une case libre (plus
+    /// découvrable qu'un long press seul) ; les blocs, dessinés au-dessus
+    /// avec leur propre zone de tap, interceptent le tap là où le créneau
+    /// est occupé, donc ce raccourci ne s'applique de fait qu'aux cases
+    /// libres. Le long press reste disponible en complément.
+    private func hourCell(day: Date, hour: Int, dayWidth: CGFloat) -> some View {
+        Rectangle()
+            .fill(Color.clear)
+            .frame(width: dayWidth, height: hourHeight)
+            .border(Color.poteSeparator.opacity(0.35), width: 0.5)
+            .contentShape(Rectangle())
+            .onTapGesture { onCreateDraft(draftEvent(on: day, hour: hour)) }
+            .simultaneousGesture(longPressGesture(day: day, hour: hour))
+    }
+
+    private func longPressGesture(day: Date, hour: Int) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.45)
+            .onEnded { _ in onCreateDraft(draftEvent(on: day, hour: hour)) }
+    }
+
     private func gridBody(dayWidth: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
@@ -99,17 +131,7 @@ struct AgendaWeekGrid: View {
                 ForEach(Array(weekDates.enumerated()), id: \.element) { _, day in
                     VStack(spacing: 0) {
                         ForEach(Array(hourRange), id: \.self) { hour in
-                            Rectangle()
-                                .fill(Color.clear)
-                                .frame(width: dayWidth, height: hourHeight)
-                                .border(Color.poteSeparator.opacity(0.35), width: 0.5)
-                                .contentShape(Rectangle())
-                                .simultaneousGesture(
-                                    LongPressGesture(minimumDuration: 0.45)
-                                        .onEnded { _ in
-                                            onCreateDraft(draftEvent(on: day, hour: hour))
-                                        }
-                                )
+                            hourCell(day: day, hour: hour, dayWidth: dayWidth)
                         }
                     }
                 }

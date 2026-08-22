@@ -138,7 +138,7 @@ private struct GroupDetailView: View {
                     draftEvent = AgendaDraftEvent(startsAt: start, endsAt: end, slotStart: start, slotEnd: end)
                 }
             } header: {
-                Text("Disponibilites cette semaine")
+                Text("Disponibilités cette semaine")
             } footer: {
                 Text("Touchez un créneau pour proposer une invitation à ce moment-là.")
             }
@@ -234,7 +234,7 @@ private struct WeeklyAvailabilityView: View {
 
     var body: some View {
         ForEach(days) { day in
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(dayTitle(day.date))
                     .font(.subheadline.weight(.semibold))
                 if day.freeRanges.isEmpty {
@@ -247,14 +247,20 @@ private struct WeeklyAvailabilityView: View {
                             onSelectRange(range.start, range.end)
                         } label: {
                             HStack {
-                                Text("Libre de \(rangeText(range))")
-                                    .font(.subheadline)
+                                Text(rangeText(range))
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.primary)
                                 Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                HStack(spacing: 3) {
+                                    Text("Proposer")
+                                    Image(systemName: "chevron.right")
+                                }
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
                             }
-                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

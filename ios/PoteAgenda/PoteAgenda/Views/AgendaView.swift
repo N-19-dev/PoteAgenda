@@ -2,8 +2,10 @@ import SwiftUI
 
 struct AgendaView: View {
     @EnvironmentObject private var dataStore: AppDataStore
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var draftEvent: AgendaDraftEvent?
     @State private var selectedDisplayMode: AgendaDisplayMode = .week
+    @State private var didSetInitialDisplayMode = false
     @State private var didSelectInitialFriends = false
     @State private var eventToDelete: CalendarEvent?
     @State private var selectedBlock: AgendaBlock?
@@ -11,6 +13,18 @@ struct AgendaView: View {
     @State private var calendarPageOffset = 0
 
     private let calendarPageRadius = 5
+
+    /// Sur iPhone (largeur compacte), une semaine complète comprime trop les
+    /// blocs pour rester lisible : on démarre en vue jour, une seule fois au
+    /// premier affichage. Sur iPad/desktop (largeur régulière), la vue
+    /// semaine reste la valeur par défaut.
+    private func applyInitialDisplayModeIfNeeded() {
+        guard !didSetInitialDisplayMode else { return }
+        didSetInitialDisplayMode = true
+        if horizontalSizeClass == .compact {
+            selectedDisplayMode = .day
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -92,6 +106,7 @@ struct AgendaView: View {
                 }
             }
             .task {
+                applyInitialDisplayModeIfNeeded()
                 await refreshVisibleAgenda()
                 syncSelectedFriendsWithAcceptedFriends()
             }

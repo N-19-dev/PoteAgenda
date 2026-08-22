@@ -53,9 +53,9 @@ struct SettingsView: View {
                     Text("Notifications")
                 }
 
-                Section("Backend") {
-                    Text("Supabase + RLS")
-                    Text("Les amis et groupes ne récupèrent que les créneaux autorisés par les politiques existantes.")
+                Section("Confidentialité") {
+                    Text("Tes amis ne voient jamais les titres ni les détails de ton agenda.")
+                    Text("Ils voient seulement si tu es \"Libre\" ou \"Occupé\" sur un créneau, jamais le contenu de tes événements.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

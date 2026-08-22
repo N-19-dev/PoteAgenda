@@ -27,7 +27,7 @@ struct AgendaMonthGrid: View {
                         Spacer()
                         let count = blockCount(on: day)
                         if count > 0 {
-                            Text("\(count) occupé")
+                            Text(count == 1 ? "1 créneau" : "\(count) créneaux")
                                 .font(.caption2.weight(.bold))
                                 .lineLimit(1)
                                 .foregroundStyle(.white)
